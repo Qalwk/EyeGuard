@@ -18,6 +18,7 @@ import {
   anglesFromTransformationMatrix, awayDelayMs, isLookingAway, loadCalibration, loadSensitivity,
   smoothAngles, type AttentionStatus, type CalibrationProfile, type HeadAngles, type Sensitivity,
 } from '../lib/presenceMonitoring'
+import { saveCompletedWorkSession } from '../lib/workSessions'
 
 export const THRESHOLD_STORAGE_KEY = 'eyeguard-fatigue-threshold'
 const DEFAULT_THRESHOLD = 55
@@ -39,6 +40,9 @@ export type DashboardState = {
   sessionDurationMs: number
   hasFace: boolean
   attentionStatus: AttentionStatus
+  activeSessionDurationMs: number
+  awayDurationMs: number
+  manualPauseDurationMs: number
   fatigueMetrics: FatigueMetrics
 }
 
@@ -59,6 +63,9 @@ export const initialDashboardState: DashboardState = {
   sessionDurationMs: 0,
   hasFace: false,
   attentionStatus: 'uncertain',
+  activeSessionDurationMs: 0,
+  awayDurationMs: 0,
+  manualPauseDurationMs: 0,
   fatigueMetrics: emptyMetrics,
 }
 
@@ -254,6 +261,13 @@ type UseEyeMonitoringOptions = {
   onDashboardUpdate?: (state: DashboardState) => void
 }
 
+export type WorkSessionSetup = {
+  mode?: 'free' | 'pomodoro' | 'smart-pomodoro'
+  plannedDurationMinutes?: number
+  breakDurationMinutes?: number
+  goal?: string
+}
+
 export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
   const { autoStart = false, onDashboardUpdate } = options
   const onDashboardUpdateRef = useRef(onDashboardUpdate)
@@ -283,6 +297,8 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
   const sensitivityRef = useRef<Sensitivity>(loadSensitivity())
   const isCalibratingRef = useRef(false)
   const isPausedRef = useRef(false)
+  const sessionSetupRef = useRef<WorkSessionSetup | null>(null)
+  const sessionTimesRef = useRef({ activeMs: 0, awayMs: 0, manualPauseMs: 0 })
 
   const [threshold, setThreshold] = useState(() => loadStoredThreshold())
   const [isMonitoring, setIsMonitoring] = useState(false)
@@ -320,6 +336,7 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
     awayStartedAtRef.current = null
     calibrationSamplesRef.current = []
     calibrationStartedAtRef.current = null
+    sessionTimesRef.current = { activeMs: 0, awayMs: 0, manualPauseMs: 0 }
   }, [])
 
   const syncCanvasWithVideo = useCallback(() => {
@@ -355,8 +372,25 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
         animationFrameRef.current = null
       }
 
+      const startedAt = sessionStartedAtRef.current
+      const setup = sessionSetupRef.current
+      if (resetView && startedAt && setup) {
+        saveCompletedWorkSession({
+          id: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
+          completedAt: new Date().toISOString(),
+          goal: setup.goal?.trim() ?? '',
+          mode: setup.mode ?? 'free',
+          plannedDurationMinutes: setup.plannedDurationMinutes ?? 0,
+          breakDurationMinutes: setup.breakDurationMinutes ?? 0,
+          totalDurationMs: performance.now() - startedAt,
+          activeDurationMs: sessionTimesRef.current.activeMs,
+          awayDurationMs: sessionTimesRef.current.awayMs,
+          manualPauseDurationMs: sessionTimesRef.current.manualPauseMs,
+        })
+      }
       stopMediaStream()
       resetRuntimeData()
+      sessionSetupRef.current = null
       drawOverlay(canvasRef.current, null, false)
 
       if (resetView) {
@@ -428,7 +462,7 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
     }
   }, [stopMonitoring])
 
-  const startMonitoring = useCallback(async () => {
+  const startMonitoring = useCallback(async (setup?: WorkSessionSetup) => {
     if (!navigator.mediaDevices?.getUserMedia) {
       setErrorMessage('Текущий браузер не поддерживает доступ к веб-камере.')
       updateDashboard({ ...initialDashboardState, status: 'error' })
@@ -436,6 +470,7 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
     }
 
     stopMonitoring(false)
+    sessionSetupRef.current = setup ?? { mode: 'free' }
     setErrorMessage('')
     setIsMonitoring(true)
     updateDashboard({ ...initialDashboardState, status: 'starting' })
@@ -526,6 +561,9 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
         }
 
         if (!hasFace) {
+          if (isPausedRef.current) {
+            sessionTimesRef.current.manualPauseMs += frameDeltaMs
+          }
           if (isCalibratingRef.current) {
             calibrationSamplesRef.current = []
             calibrationStartedAtRef.current = null
@@ -549,6 +587,9 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
                 sessionDurationMs: nowMs - (sessionStartedAtRef.current ?? nowMs),
                 hasFace: false,
                 attentionStatus: isPausedRef.current ? 'paused' : 'uncertain',
+                activeSessionDurationMs: sessionTimesRef.current.activeMs,
+                awayDurationMs: sessionTimesRef.current.awayMs,
+                manualPauseDurationMs: sessionTimesRef.current.manualPauseMs,
                 fatigueMetrics: buildFatigueMetrics({
                   blinkEvents: blinkEventsRef.current,
                   sessionDurationMs: nowMs - (sessionStartedAtRef.current ?? nowMs),
@@ -605,6 +646,14 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
           }
         }
 
+        if (attentionStatus === 'active') {
+          sessionTimesRef.current.activeMs += frameDeltaMs
+        } else if (attentionStatus === 'away') {
+          sessionTimesRef.current.awayMs += frameDeltaMs
+        } else if (attentionStatus === 'paused') {
+          sessionTimesRef.current.manualPauseMs += frameDeltaMs
+        }
+
         if (eyeClosedRef.current) {
           totalClosedEyeMsRef.current += frameDeltaMs
         }
@@ -654,6 +703,9 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
             sessionDurationMs,
             hasFace: true,
             attentionStatus,
+            activeSessionDurationMs: sessionTimesRef.current.activeMs,
+            awayDurationMs: sessionTimesRef.current.awayMs,
+            manualPauseDurationMs: sessionTimesRef.current.manualPauseMs,
             fatigueMetrics,
           })
         }

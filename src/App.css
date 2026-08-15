@@ -670,6 +670,101 @@
   color: var(--text-soft);
 }
 
+.session-setup-card {
+  display: grid;
+  grid-template-columns: minmax(220px, .8fr) minmax(0, 1.2fr);
+  gap: 24px;
+  padding: 20px 22px;
+  border: 1px solid rgba(124, 58, 237, .28);
+  border-radius: 20px;
+  background: var(--panel-bg);
+  box-shadow: var(--shadow);
+  text-align: left;
+}
+
+.session-setup-card h2 { margin: 0 0 8px; }
+.session-setup-card p { margin: 0; color: var(--text-soft); }
+
+.session-setup-fields {
+  display: grid;
+  grid-template-columns: minmax(150px, .8fr) minmax(120px, .5fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.session-setup-fields label {
+  display: grid;
+  gap: 7px;
+  color: var(--text-h);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.session-setup-fields select,
+.session-setup-fields input {
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--input-bg);
+  color: var(--text-h);
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.session-start-button {
+  grid-column: 1 / -1;
+  justify-self: start;
+  margin-top: 4px;
+}
+
+.pomodoro-panel {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 18px;
+  border: 1px solid rgba(124, 58, 237, .32);
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(124, 58, 237, .14), rgba(37, 99, 235, .12));
+}
+
+.pomodoro-panel span {
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.pomodoro-panel strong { color: var(--text-h); font-size: 34px; }
+.pomodoro-panel p { margin: 0; color: var(--text-soft); }
+
+.session-control-panel { padding: 22px; }
+
+.session-control-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.session-end-button {
+  color: #b91c1c;
+  border-color: rgba(239, 68, 68, .38);
+}
+
+@media (max-width: 1080px) {
+  .session-setup-card,
+  .session-setup-fields { grid-template-columns: 1fr; }
+
+  .session-control-actions { width: 100%; }
+
+  .session-start-button { justify-self: stretch; }
+}
+
+@media (max-width: 720px) {
+  .session-control-actions { flex-direction: column; }
+}
+
 .roadmap-principle,
 .roadmap-card,
 .roadmap-decision,
