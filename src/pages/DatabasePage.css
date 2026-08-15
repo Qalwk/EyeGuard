@@ -1,0 +1,347 @@
+.phpmyadmin-page {
+  min-height: 100vh;
+  background: #f5f5f5;
+  color: #000;
+  font: 12px/1.4 Arial, Helvetica, sans-serif;
+}
+
+.phpmyadmin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 14px;
+  background: linear-gradient(#fefefe, #e8e8e8);
+  border-bottom: 1px solid #aaa;
+}
+
+.phpmyadmin-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.phpmyadmin-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 118px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 4px;
+  background: linear-gradient(#ffb347, #ff8c00);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.phpmyadmin-server-info {
+  color: #444;
+  font-size: 11px;
+}
+
+.phpmyadmin-server-info strong {
+  color: #000;
+}
+
+.phpmyadmin-status {
+  color: #235a81;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.phpmyadmin-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  min-height: calc(100vh - 53px);
+}
+
+.phpmyadmin-sidebar {
+  background: #ececec;
+  border-right: 1px solid #aaa;
+  padding: 10px 8px;
+}
+
+.phpmyadmin-sidebar-title {
+  margin: 0 0 8px;
+  padding: 4px 6px;
+  color: #333;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.phpmyadmin-tree {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.phpmyadmin-tree-item {
+  margin-bottom: 2px;
+}
+
+.phpmyadmin-tree-button,
+.phpmyadmin-tree-link {
+  display: block;
+  width: 100%;
+  padding: 4px 6px 4px 18px;
+  border: 0;
+  background: transparent;
+  color: #235a81;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+.phpmyadmin-tree-button:hover,
+.phpmyadmin-tree-link:hover,
+.phpmyadmin-tree-link.active {
+  background: #dbeafe;
+  color: #000;
+}
+
+.phpmyadmin-tree-button {
+  position: relative;
+  font-weight: 700;
+}
+
+.phpmyadmin-tree-button::before {
+  content: '▾';
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  color: #666;
+}
+
+.phpmyadmin-tree-nested {
+  margin: 2px 0 6px;
+  padding: 0;
+  list-style: none;
+}
+
+.phpmyadmin-main {
+  padding: 10px 12px 24px;
+  background: #f5f5f5;
+}
+
+.phpmyadmin-breadcrumbs {
+  margin-bottom: 8px;
+  color: #444;
+  font-size: 11px;
+}
+
+.phpmyadmin-breadcrumbs a {
+  color: #235a81;
+  text-decoration: none;
+}
+
+.phpmyadmin-breadcrumbs a:hover {
+  text-decoration: underline;
+}
+
+.phpmyadmin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-bottom: 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.phpmyadmin-tab {
+  padding: 5px 10px;
+  border: 1px solid #aaa;
+  border-bottom: 0;
+  background: linear-gradient(#f8f8f8, #e0e0e0);
+  color: #235a81;
+  font-size: 11px;
+  cursor: default;
+}
+
+.phpmyadmin-tab.active {
+  background: #fff;
+  color: #000;
+  font-weight: 700;
+}
+
+.phpmyadmin-panel {
+  padding: 10px;
+  border: 1px solid #aaa;
+  background: #fff;
+}
+
+.phpmyadmin-message {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border: 1px solid #7eb8da;
+  background: #e7f4ff;
+  color: #000;
+}
+
+.phpmyadmin-sql-box {
+  margin-bottom: 10px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  background: #f8f8f8;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 11px;
+  color: #333;
+  white-space: pre-wrap;
+}
+
+.phpmyadmin-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.phpmyadmin-button {
+  padding: 4px 10px;
+  border: 1px solid #767676;
+  border-radius: 2px;
+  background: linear-gradient(#fefefe, #e3e3e3);
+  color: #000;
+  font: inherit;
+  cursor: pointer;
+}
+
+.phpmyadmin-button:hover {
+  background: linear-gradient(#ffffff, #d7d7d7);
+}
+
+.phpmyadmin-button-primary {
+  border-color: #5b7ea4;
+  background: linear-gradient(#f3f8fd, #d5e3f1);
+  color: #235a81;
+}
+
+.phpmyadmin-button-danger {
+  border-color: #c66;
+  color: #900;
+}
+
+.phpmyadmin-table-wrap {
+  overflow-x: auto;
+}
+
+.phpmyadmin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.phpmyadmin-table th,
+.phpmyadmin-table td {
+  padding: 4px 6px;
+  border: 1px solid #aaa;
+  vertical-align: middle;
+}
+
+.phpmyadmin-table thead th {
+  background: #d3dce3;
+  color: #000;
+  font-weight: 700;
+  text-align: left;
+}
+
+.phpmyadmin-table tbody tr:nth-child(even) {
+  background: #f7f7f7;
+}
+
+.phpmyadmin-table tbody tr:hover {
+  background: #ffffcc;
+}
+
+.phpmyadmin-table .actions-cell {
+  white-space: nowrap;
+}
+
+.phpmyadmin-link-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #235a81;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
+.phpmyadmin-link-button:hover {
+  color: #f00;
+}
+
+.phpmyadmin-select,
+.phpmyadmin-input {
+  width: 100%;
+  min-height: 22px;
+  padding: 2px 4px;
+  border: 1px solid #767676;
+  background: #fff;
+  font: inherit;
+}
+
+.phpmyadmin-form-panel {
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid #7eb8da;
+  background: #f3f8fd;
+}
+
+.phpmyadmin-form-panel h3 {
+  margin: 0 0 10px;
+  font-size: 12px;
+}
+
+.phpmyadmin-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.phpmyadmin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.phpmyadmin-field span {
+  color: #333;
+  font-weight: 700;
+}
+
+.phpmyadmin-field-error {
+  color: #900;
+  font-size: 10px;
+}
+
+.phpmyadmin-form-error {
+  margin: 8px 0 0;
+  color: #900;
+}
+
+.phpmyadmin-footer-note {
+  margin-top: 10px;
+  color: #666;
+  font-size: 11px;
+}
+
+.phpmyadmin-loading {
+  padding: 24px;
+  color: #444;
+}
+
+@media (max-width: 900px) {
+  .phpmyadmin-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .phpmyadmin-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

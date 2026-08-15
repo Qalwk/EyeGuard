@@ -1,0 +1,22 @@
+User-agent: *
+
+Allow: /
+Allow: /about.html
+Allow: /policy.html
+Allow: /favicon.svg
+
+Disallow: /admin/
+Disallow: /dashboard
+Disallow: /assets
+Disallow: /analytics/
+Disallow: /login
+Disallow: /register
+Disallow: /src/
+
+Disallow: /*?
+
+Sitemap: http://localhost:5173/sitemap.xml
+
+
+
+
