@@ -32,6 +32,12 @@ export function AppLayout({ title, description, actions, children }: AppLayoutPr
               >
                 Мониторинг
               </NavLink>
+              <NavLink
+                to="/roadmap"
+                className={({ isActive }) => (isActive ? 'page-tab active' : 'page-tab')}
+              >
+                План развития
+              </NavLink>
               {isAdmin ? (
                 <NavLink
                   to="/admin"

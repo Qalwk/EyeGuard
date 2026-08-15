@@ -14,6 +14,10 @@ import {
 } from '../lib/eyeMetrics'
 import { resolveMonitoringStatus, type MonitoringUiStatus } from '../lib/appLabels'
 import { clampThreshold } from '../lib/formValidation'
+import {
+  anglesFromTransformationMatrix, awayDelayMs, isLookingAway, loadCalibration, loadSensitivity,
+  smoothAngles, type AttentionStatus, type CalibrationProfile, type HeadAngles, type Sensitivity,
+} from '../lib/presenceMonitoring'
 
 export const THRESHOLD_STORAGE_KEY = 'eyeguard-fatigue-threshold'
 const DEFAULT_THRESHOLD = 55
@@ -34,6 +38,7 @@ export type DashboardState = {
   currentEar: number
   sessionDurationMs: number
   hasFace: boolean
+  attentionStatus: AttentionStatus
   fatigueMetrics: FatigueMetrics
 }
 
@@ -53,6 +58,7 @@ export const initialDashboardState: DashboardState = {
   currentEar: 0,
   sessionDurationMs: 0,
   hasFace: false,
+  attentionStatus: 'uncertain',
   fatigueMetrics: emptyMetrics,
 }
 
@@ -269,11 +275,25 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
   const blinkEventsRef = useRef<BlinkEvent[]>([])
   const blinkCountRef = useRef(0)
   const processedFrameCountRef = useRef(0)
+  const smoothedAnglesRef = useRef<HeadAngles | null>(null)
+  const awayStartedAtRef = useRef<number | null>(null)
+  const calibrationSamplesRef = useRef<HeadAngles[]>([])
+  const calibrationStartedAtRef = useRef<number | null>(null)
+  const calibrationRef = useRef<CalibrationProfile | null>(loadCalibration())
+  const sensitivityRef = useRef<Sensitivity>(loadSensitivity())
+  const isCalibratingRef = useRef(false)
+  const isPausedRef = useRef(false)
 
   const [threshold, setThreshold] = useState(() => loadStoredThreshold())
   const [isMonitoring, setIsMonitoring] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [dashboard, setDashboard] = useState<DashboardState>(initialDashboardState)
+  const [sensitivity, setSensitivity] = useState<Sensitivity>(() => loadSensitivity())
+  const [calibration, setCalibration] = useState<CalibrationProfile | null>(() => loadCalibration())
+  const [isCalibrating, setIsCalibrating] = useState(false)
+  const [calibrationProgress, setCalibrationProgress] = useState(0)
+  const [calibrationMessage, setCalibrationMessage] = useState('')
+  const [isPaused, setIsPaused] = useState(false)
 
   useEffect(() => {
     onDashboardUpdateRef.current = onDashboardUpdate
@@ -296,6 +316,10 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
     blinkEventsRef.current = []
     blinkCountRef.current = 0
     processedFrameCountRef.current = 0
+    smoothedAnglesRef.current = null
+    awayStartedAtRef.current = null
+    calibrationSamplesRef.current = []
+    calibrationStartedAtRef.current = null
   }, [])
 
   const syncCanvasWithVideo = useCallback(() => {
@@ -360,7 +384,7 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
       minFacePresenceConfidence: 0.5,
       minTrackingConfidence: 0.5,
       outputFaceBlendshapes: false,
-      outputFacialTransformationMatrixes: false,
+      outputFacialTransformationMatrixes: true,
     })
 
     faceLandmarkerRef.current = faceLandmarker
@@ -371,6 +395,30 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
     thresholdRef.current = threshold
     window.localStorage.setItem(THRESHOLD_STORAGE_KEY, String(threshold))
   }, [threshold])
+
+  useEffect(() => {
+    window.localStorage.setItem('eyeguard-presence-sensitivity', sensitivity)
+    sensitivityRef.current = sensitivity
+  }, [sensitivity])
+
+  useEffect(() => {
+    calibrationRef.current = calibration
+  }, [calibration])
+
+  const startCalibration = useCallback(() => {
+    calibrationSamplesRef.current = []
+    calibrationStartedAtRef.current = null
+    setCalibrationProgress(0)
+    setCalibrationMessage('Смотрите на экран. Калибровка начнётся, когда камера увидит лицо.')
+    isCalibratingRef.current = true
+    setIsCalibrating(true)
+  }, [])
+
+  const setPaused = useCallback((paused: boolean) => {
+    setIsPaused(paused)
+    isPausedRef.current = paused
+    awayStartedAtRef.current = null
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -431,6 +479,16 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
       sessionStartedAtRef.current = startedAt
       lastFrameTimestampRef.current = startedAt
       lastFaceSeenAtRef.current = startedAt
+      isPausedRef.current = false
+      setIsPaused(false)
+      if (!calibrationRef.current) {
+        calibrationSamplesRef.current = []
+        calibrationStartedAtRef.current = null
+        isCalibratingRef.current = true
+        setIsCalibrating(true)
+        setCalibrationProgress(0)
+        setCalibrationMessage('Смотрите на экран 5 секунд, чтобы настроить обычное положение.')
+      }
 
       const processFrame = () => {
         const activeVideo = videoRef.current
@@ -468,6 +526,12 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
         }
 
         if (!hasFace) {
+          if (isCalibratingRef.current) {
+            calibrationSamplesRef.current = []
+            calibrationStartedAtRef.current = null
+            setCalibrationProgress(0)
+            setCalibrationMessage('Лицо не видно. Посмотрите в камеру, чтобы продолжить калибровку.')
+          }
           if (
             lastFaceSeenAtRef.current !== null &&
             nowMs - lastFaceSeenAtRef.current > FACE_TIMEOUT_MS
@@ -484,6 +548,7 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
                 currentEar: 0,
                 sessionDurationMs: nowMs - (sessionStartedAtRef.current ?? nowMs),
                 hasFace: false,
+                attentionStatus: isPausedRef.current ? 'paused' : 'uncertain',
                 fatigueMetrics: buildFatigueMetrics({
                   blinkEvents: blinkEventsRef.current,
                   sessionDurationMs: nowMs - (sessionStartedAtRef.current ?? nowMs),
@@ -498,6 +563,47 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
         }
 
         const currentEar = calculateAverageEar(landmarks as NormalizedLandmark[])
+        const matrixAngles = anglesFromTransformationMatrix(result.facialTransformationMatrixes[0]?.data)
+        if (matrixAngles) {
+          smoothedAnglesRef.current = smoothAngles(smoothedAnglesRef.current, matrixAngles)
+        }
+
+        if (isCalibratingRef.current) {
+          if (!matrixAngles) {
+            setCalibrationMessage('Камера не уверена в положении лица. Сядьте ровно и смотрите на экран.')
+          } else {
+            const calibrationStart = calibrationStartedAtRef.current ?? nowMs
+            calibrationStartedAtRef.current = calibrationStart
+            calibrationSamplesRef.current.push(matrixAngles)
+            const elapsed = nowMs - calibrationStart
+            setCalibrationProgress(Math.min(100, Math.round((elapsed / 5000) * 100)))
+            setCalibrationMessage('Смотрите на экран ещё немного…')
+            if (elapsed >= 5000) {
+              const samples = calibrationSamplesRef.current
+              const totals = samples.reduce((total, item) => ({ yaw: total.yaw + item.yaw, pitch: total.pitch + item.pitch, roll: total.roll + item.roll }), { yaw: 0, pitch: 0, roll: 0 })
+              const profile = { angles: { yaw: totals.yaw / samples.length, pitch: totals.pitch / samples.length, roll: totals.roll / samples.length }, savedAt: Date.now() }
+              window.localStorage.setItem('eyeguard-presence-calibration', JSON.stringify(profile))
+              setCalibration(profile)
+              calibrationRef.current = profile
+              isCalibratingRef.current = false
+              setIsCalibrating(false)
+              setCalibrationProgress(100)
+              setCalibrationMessage('Готово. Обычное положение сохранено на этом устройстве.')
+            }
+          }
+        }
+
+        const stableAngles = smoothedAnglesRef.current
+        let attentionStatus: AttentionStatus = isPausedRef.current ? 'paused' : 'uncertain'
+        if (!isPausedRef.current && calibrationRef.current && stableAngles) {
+          if (isLookingAway(stableAngles, calibrationRef.current.angles, sensitivityRef.current)) {
+            awayStartedAtRef.current ??= nowMs
+            attentionStatus = nowMs - awayStartedAtRef.current >= awayDelayMs(sensitivityRef.current) ? 'away' : 'active'
+          } else {
+            awayStartedAtRef.current = null
+            attentionStatus = 'active'
+          }
+        }
 
         if (eyeClosedRef.current) {
           totalClosedEyeMsRef.current += frameDeltaMs
@@ -547,6 +653,7 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
             currentEar,
             sessionDurationMs,
             hasFace: true,
+            attentionStatus,
             fatigueMetrics,
           })
         }
@@ -579,6 +686,15 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
     isMonitoring,
     errorMessage,
     dashboard,
+    sensitivity,
+    setSensitivity,
+    calibration,
+    isCalibrating,
+    calibrationProgress,
+    calibrationMessage,
+    startCalibration,
+    isPaused,
+    setPaused,
     startMonitoring,
     stopMonitoring,
   }

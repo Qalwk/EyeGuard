@@ -1,26 +1,31 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppLayout } from '../components/AppLayout'
-import { loadStoredThreshold, useEyeMonitoring } from '../hooks/useEyeMonitoring'
-import { APP_LABELS, getStatusBadgeText, getUserStateText } from '../lib/appLabels'
+import { useEyeMonitoring } from '../hooks/useEyeMonitoring'
+import { APP_LABELS, getStatusBadgeText } from '../lib/appLabels'
 import { formatSessionDuration } from '../lib/eyeMetrics'
-import { clampThreshold, THRESHOLD_MAX, THRESHOLD_MIN, validateThresholdInput } from '../lib/formValidation'
 
 export function MonitorPage() {
   const displayStreamRef = useRef<MediaStream | null>(null)
-  const [thresholdInput, setThresholdInput] = useState(() => String(loadStoredThreshold()))
-  const [thresholdError, setThresholdError] = useState('')
+  const isStoppingTabShareRef = useRef(false)
   const [isTabShared, setIsTabShared] = useState(false)
   const [shareError, setShareError] = useState('')
   const {
     videoRef,
     canvasRef,
-    threshold,
-    setThreshold,
     isMonitoring,
     errorMessage,
     dashboard,
     startMonitoring,
     stopMonitoring,
+    sensitivity,
+    setSensitivity,
+    calibration,
+    isCalibrating,
+    calibrationProgress,
+    calibrationMessage,
+    startCalibration,
+    isPaused,
+    setPaused,
   } = useEyeMonitoring()
 
   const statusText = useMemo(
@@ -29,9 +34,13 @@ export function MonitorPage() {
   )
 
   const stopTabShare = useCallback(() => {
+    isStoppingTabShareRef.current = true
     displayStreamRef.current?.getTracks().forEach((track) => track.stop())
     displayStreamRef.current = null
     setIsTabShared(false)
+    window.setTimeout(() => {
+      isStoppingTabShareRef.current = false
+    }, 0)
   }, [])
 
   useEffect(() => stopTabShare, [stopTabShare])
@@ -63,7 +72,11 @@ export function MonitorPage() {
       displayStream.getVideoTracks()[0]?.addEventListener('ended', () => {
         displayStreamRef.current = null
         setIsTabShared(false)
-        stopMonitoring()
+        if (!isStoppingTabShareRef.current) {
+          setShareError(
+            'Демонстрация вкладки была остановлена браузером. Мониторинг камеры продолжается.',
+          )
+        }
       })
 
       await startMonitoring()
@@ -80,26 +93,6 @@ export function MonitorPage() {
   const handleStopMonitoring = () => {
     stopMonitoring()
     stopTabShare()
-  }
-
-  const handleThresholdChange = (value: number) => {
-    const nextValue = clampThreshold(value)
-    setThreshold(nextValue)
-    setThresholdInput(String(nextValue))
-    setThresholdError('')
-  }
-
-  const handleThresholdInputBlur = () => {
-    const validationResult = validateThresholdInput(thresholdInput)
-    if (validationResult.error || validationResult.value === null) {
-      setThresholdError(validationResult.error)
-      setThresholdInput(String(threshold))
-      return
-    }
-
-    setThreshold(validationResult.value)
-    setThresholdInput(String(validationResult.value))
-    setThresholdError('')
   }
 
   return (
@@ -127,6 +120,9 @@ export function MonitorPage() {
           <button className="secondary-button" type="button" onClick={handleStopMonitoring} disabled={!isMonitoring && !isTabShared}>
             Остановить
           </button>
+          <button className="secondary-button" type="button" onClick={() => setPaused(!isPaused)} disabled={!isMonitoring}>
+            {isPaused ? 'Продолжить сессию' : 'Поставить на паузу'}
+          </button>
         </div>
       }
     >
@@ -136,7 +132,6 @@ export function MonitorPage() {
             <strong>Демонстрация вкладки активна</strong>
             <span>Не закрывайте системную панель браузера. Выберите «Эта вкладка» в диалоге доступа.</span>
           </div>
-          <strong>Обработано кадров: {dashboard.processedFrameCount}</strong>
         </section>
       ) : null}
       {shareError ? <p className="form-error" role="alert">{shareError}</p> : null}
@@ -174,25 +169,29 @@ export function MonitorPage() {
 
         <aside className="sidebar">
           <article className="settings-card">
-            <h2>Порог утомления</h2>
-            <p>Значение хранится в localStorage и используется для определения предупреждения.</p>
-            <div className="threshold-control">
-              <input type="range" min={THRESHOLD_MIN} max={THRESHOLD_MAX} step="1" value={threshold} onChange={(event) => handleThresholdChange(Number(event.target.value))} />
-              <input type="number" min={THRESHOLD_MIN} max={THRESHOLD_MAX} value={thresholdInput} onChange={(event) => { setThresholdInput(event.target.value); setThresholdError('') }} onBlur={handleThresholdInputBlur} aria-invalid={Boolean(thresholdError)} />
-            </div>
-            {thresholdError ? <p className="field-error threshold-error" role="alert">{thresholdError}</p> : null}
-            <div className="threshold-hint">Допустимый диапазон: {THRESHOLD_MIN}–{THRESHOLD_MAX}. Текущее значение: <strong>{threshold}</strong></div>
+            <h2>Присутствие у экрана</h2>
+            <p>{calibration ? 'Обычное положение сохранено для этой камеры.' : 'Настройте обычное положение, чтобы отслеживание было точнее.'}</p>
+            <label className="settings-label" htmlFor="presence-sensitivity">Чувствительность</label>
+            <select id="presence-sensitivity" className="settings-select" value={sensitivity} onChange={(event) => setSensitivity(event.target.value as 'soft' | 'normal' | 'strict')}>
+              <option value="soft">Мягкая</option>
+              <option value="normal">Обычная</option>
+              <option value="strict">Строгая</option>
+            </select>
+            <button className="secondary-button calibration-button" type="button" disabled={!isMonitoring || isCalibrating} onClick={startCalibration}>
+              {calibration ? 'Перенастроить' : 'Настроить положение'}
+            </button>
+            {isCalibrating ? <div className="calibration-progress" aria-live="polite"><span style={{ width: `${calibrationProgress}%` }} /></div> : null}
+            {calibrationMessage ? <p className="calibration-message" aria-live="polite">{calibrationMessage}</p> : null}
           </article>
-          <article className={dashboard.status === 'warning' ? 'warning-card warning-card-active' : 'warning-card'}>
-            <h2>{APP_LABELS.userStateTitle}</h2>
-            <p className={dashboard.status === 'warning' ? 'warning-text' : ''}>{getUserStateText(dashboard.status)}</p>
+          <article className={dashboard.attentionStatus === 'away' ? 'warning-card warning-card-active' : 'warning-card'}>
+            <h2>Внимание</h2>
+            <p className={dashboard.attentionStatus === 'away' ? 'warning-text' : ''}>{dashboard.attentionStatus === 'active' ? 'Вы у экрана' : dashboard.attentionStatus === 'away' ? 'Похоже, вы отвлеклись' : dashboard.attentionStatus === 'paused' ? 'Сессия на паузе' : 'Камера не уверена'}</p>
             {dashboard.status === 'error' && errorMessage ? <p className="error-text">{errorMessage}</p> : null}
           </article>
         </aside>
       </section>
 
       <section className="metrics-grid">
-        <article className="metric-card"><span>Обработано кадров</span><strong>{dashboard.processedFrameCount}</strong></article>
         <article className="metric-card"><span>{APP_LABELS.blinkCountTitle}</span><strong>{dashboard.blinkCount}</strong></article>
         <article className="metric-card"><span>Длительность сеанса</span><strong>{formatSessionDuration(dashboard.sessionDurationMs)}</strong></article>
         <article className="metric-card"><span>{APP_LABELS.blinkRateTitle}</span><strong>{dashboard.fatigueMetrics.blinkRatePerMinute} / мин</strong></article>
