@@ -610,6 +610,27 @@
   border-color: rgba(239, 68, 68, 0.35);
 }
 
+.share-status-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border: 1px solid rgba(37, 99, 235, 0.34);
+  border-radius: 18px;
+  background: rgba(37, 99, 235, 0.09);
+  color: var(--text-h);
+}
+
+.share-status-panel div {
+  display: grid;
+  gap: 4px;
+}
+
+.share-status-panel span {
+  color: var(--text-soft);
+}
+
 @media (max-width: 1080px) {
   .auth-layout,
   .app-shell {

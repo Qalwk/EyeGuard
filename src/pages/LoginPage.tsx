@@ -26,7 +26,7 @@ const initialAuthForm: AuthFormState = {
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const { isReady, currentUser, login, register } = useAuth()
+  const { isReady, currentUser, login, loginAsGuest, register } = useAuth()
   const [authMode, setAuthMode] = useState<AuthMode>('register')
   const [form, setForm] = useState<AuthFormState>(initialAuthForm)
   const [errors, setErrors] = useState<AuthFormErrors>({})
@@ -53,6 +53,11 @@ export function LoginPage() {
     setAuthMode(mode)
     setErrors({})
     setFormError('')
+  }
+
+  const handleGuestLogin = () => {
+    loginAsGuest()
+    navigate('/')
   }
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -228,6 +233,9 @@ export function LoginPage() {
             <div className="auth-actions">
               <button className="primary-button" type="submit">
                 {authMode === 'register' ? 'Зарегистрироваться и войти' : 'Войти'}
+              </button>
+              <button className="secondary-button" type="button" onClick={handleGuestLogin}>
+                Войти без регистрации
               </button>
             </div>
           </form>

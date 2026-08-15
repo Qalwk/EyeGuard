@@ -68,6 +68,22 @@ export function clearAuthSession() {
   window.sessionStorage.removeItem(SESSION_STORAGE_KEY)
 }
 
+export function createGuestUser(): UserAccount {
+  return {
+    id: 0,
+    email: '',
+    login: 'guest',
+    name: 'Гость',
+    password: '',
+    roleId: 2,
+    createdAt: '',
+  }
+}
+
+export function isGuestSession(session: AuthSession): session is { guest: true } {
+  return 'guest' in session && session.guest === true
+}
+
 export function findUserByLogin(users: UserAccount[], login: string) {
   const normalizedLogin = login.trim().toLowerCase()
 

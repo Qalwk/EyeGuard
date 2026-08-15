@@ -26,6 +26,6 @@ export type UserAccountFormValues = {
   roleId: number
 }
 
-export type AuthSession = {
-  userId: number
-}
+export type AuthSession =
+  | { userId: number }
+  | { guest: true }

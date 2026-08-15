@@ -11,10 +11,12 @@ import type { AccountsData, UserAccount, UserAccountFormValues } from '../types/
 import {
   authenticateUser,
   clearAuthSession,
+  createGuestUser,
   createUserAccount,
   deleteUserAccount,
   findUserById,
   isAdminUser,
+  isGuestSession,
   loadAccountsData,
   loadAuthSession,
   saveAuthSession,
@@ -28,6 +30,7 @@ type AuthContextValue = {
   currentUser: UserAccount | null
   isAdmin: boolean
   login: (loginValue: string, password: string) => string | null
+  loginAsGuest: () => void
   register: (form: UserAccountFormValues) => string | null
   logout: () => void
   addUser: (form: UserAccountFormValues) => string | null
@@ -59,8 +62,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const session = loadAuthSession()
 
         if (session) {
-          const user = findUserById(data.users, session.userId)
-          setCurrentUser(user)
+          if (isGuestSession(session)) {
+            setCurrentUser(createGuestUser())
+          } else {
+            const user = findUserById(data.users, session.userId)
+            setCurrentUser(user)
+          }
         }
       } catch {
         if (isMounted) {
@@ -98,6 +105,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [accountsData],
   )
+
+  const loginAsGuest = useCallback(() => {
+    saveAuthSession({ guest: true })
+    setCurrentUser(createGuestUser())
+  }, [])
 
   const logout = useCallback(() => {
     clearAuthSession()
@@ -219,6 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       currentUser,
       isAdmin: isAdminUser(currentUser),
       login,
+      loginAsGuest,
       register,
       logout,
       addUser,
@@ -231,6 +244,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       accountsData,
       currentUser,
       login,
+      loginAsGuest,
       register,
       logout,
       addUser,
