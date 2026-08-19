@@ -610,6 +610,178 @@
   border-color: rgba(239, 68, 68, 0.35);
 }
 
+/* Monitor page: isolated wellness theme */
+.app-shell-wellness {
+  --wellness-ink: #123c2f;
+  --wellness-muted: #668176;
+  --wellness-emerald: #075b45;
+  --wellness-emerald-dark: #034634;
+  --wellness-lime: #dfeab8;
+  --wellness-lime-soft: #f4f7e9;
+  --wellness-surface: rgba(255, 255, 255, .9);
+  --wellness-border: rgba(7, 91, 69, .12);
+  gap: 18px;
+  min-height: 100vh;
+  padding: 16px 32px 36px;
+  color: var(--wellness-ink);
+  background: radial-gradient(circle at 8% 8%, rgba(218, 234, 191, .26), transparent 19rem), radial-gradient(circle at 88% 28%, rgba(207, 230, 216, .22), transparent 25rem), linear-gradient(135deg, #fcfdfb 0%, #f8faf8 48%, #f3f6f2 100%);
+}
+
+body:has(.app-shell-wellness) {
+  background: radial-gradient(circle at 8% 8%, rgba(218, 234, 191, .26), transparent 19rem), radial-gradient(circle at 88% 28%, rgba(207, 230, 216, .22), transparent 25rem), linear-gradient(135deg, #fcfdfb 0%, #f8faf8 48%, #f3f6f2 100%);
+}
+
+.app-shell-wellness .wellness-topbar {
+  position: sticky;
+  z-index: 10;
+  top: 12px;
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto minmax(120px, 1fr);
+  align-items: center;
+  width: min(100%, 1216px);
+  min-height: 52px;
+  margin: 0 auto;
+  pointer-events: none;
+}
+
+.app-shell-wellness .wellness-brand {
+  justify-self: start;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: var(--wellness-lime-soft);
+  box-shadow: 0 5px 14px rgba(116, 178, 37, .12);
+  color: var(--wellness-emerald);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.app-shell-wellness .wellness-topbar .page-switcher {
+  grid-column: 2;
+  pointer-events: auto;
+}
+
+.app-shell-wellness .hero-panel-wellness {
+  position: relative; overflow: hidden; align-items: center; min-height: 290px; padding: 34px 40px;
+  border: 1px solid rgba(7, 91, 69, .10); border-radius: 32px;
+  background: linear-gradient(115deg, rgba(255, 255, 252, .96) 10%, rgba(240, 255, 203, .82) 100%);
+  box-shadow: 0 20px 56px rgba(5, 91, 69, .10);
+}
+.app-shell-wellness .hero-panel-wellness::after { position: absolute; right: -66px; bottom: -100px; width: 300px; height: 300px; border-radius: 50%; background: rgba(192, 243, 105, .34); content: ''; filter: blur(8px); }
+.app-shell-wellness .hero-copy { position: relative; z-index: 1; max-width: 660px; padding-top: 48px; }
+.app-shell-wellness .hero-topline { display: block; }
+.app-shell-wellness .eyebrow { margin-bottom: 12px; padding: 7px 12px; background: var(--wellness-lime-soft); color: var(--wellness-emerald); font-size: 12px; letter-spacing: .12em; }
+.app-shell-wellness h1, .app-shell-wellness h2, .app-shell-wellness h3 { color: var(--wellness-ink); }
+.app-shell-wellness h1 { max-width: 560px; margin-bottom: 14px; font-size: clamp(2.25rem, 4.2vw, 4rem); letter-spacing: -.05em; }
+.app-shell-wellness .hero-copy p { max-width: 510px; color: var(--wellness-muted); font-size: 17px; }
+.app-shell-wellness .hero-wellness-nav { position: absolute; z-index: 4; top: 24px; right: 32px; left: 40px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.app-shell-wellness .hero-wellness-nav .eyebrow { margin: 0; box-shadow: 0 5px 14px rgba(116, 178, 37, .12); }
+.app-shell-wellness .page-switcher { gap: 5px; padding: 5px; border: 1px solid rgba(7, 91, 69, .10); border-radius: 16px; background: rgba(255, 255, 252, .78); box-shadow: 0 8px 24px rgba(5, 91, 69, .07); backdrop-filter: blur(14px); }
+.app-shell-wellness .page-tab { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 14px; border-radius: 11px; color: #527165; font-size: 13px; line-height: 1; text-align: center; text-decoration: none; transition: background .2s ease, color .2s ease, transform .2s ease; }
+.app-shell-wellness .page-tab:not(.active):hover { background: #f0f9df; color: var(--wellness-emerald); }
+.app-shell-wellness .page-tab.active { background: var(--wellness-emerald); color: #fff; }
+.app-shell-wellness .page-tab-logout { color: #8a5f49; }
+.app-shell-wellness .hero-visual { position: relative; z-index: 1; flex: 0 1 390px; align-self: stretch; min-width: 260px; }
+.app-shell-wellness .hero-visual img { position: absolute; right: -5px; bottom: -82px; width: min(480px, 100%); height: auto; filter: drop-shadow(0 24px 22px rgba(5, 91, 69, .16)); }
+
+.app-shell-wellness .session-setup-card, .app-shell-wellness .video-card, .app-shell-wellness .settings-card, .app-shell-wellness .warning-card, .app-shell-wellness .metric-card, .app-shell-wellness .pomodoro-panel { border-color: var(--wellness-border); border-radius: 24px; background: var(--wellness-surface); box-shadow: 0 14px 38px rgba(5, 91, 69, .08); }
+.app-shell-wellness .session-setup-card { grid-template-columns: minmax(225px, .7fr) minmax(0, 1.3fr); padding: 28px 30px; border-color: rgba(7, 91, 69, .15); background: linear-gradient(122deg, #fffefa, #f7faf4); }
+.app-shell-wellness .session-setup-card h2 { font-size: 25px; letter-spacing: -.03em; }
+.app-shell-wellness .session-setup-card p, .app-shell-wellness .card-header p, .app-shell-wellness .settings-card p, .app-shell-wellness .warning-card p { color: var(--wellness-muted); }
+.app-shell-wellness .session-setup-fields label, .app-shell-wellness .settings-label { color: var(--wellness-ink); }
+.app-shell-wellness .session-setup-fields select, .app-shell-wellness .session-setup-fields input, .app-shell-wellness .settings-select, .app-shell-wellness .threshold-control input[type='number'] { border-color: rgba(7, 91, 69, .18); border-radius: 13px; background: rgba(255, 255, 253, .88); color: var(--wellness-ink); }
+.app-shell-wellness .session-setup-fields select:focus, .app-shell-wellness .session-setup-fields input:focus, .app-shell-wellness .settings-select:focus, .app-shell-wellness .threshold-control input:focus { outline: 3px solid rgba(154, 211, 63, .38); outline-offset: 2px; }
+.app-shell-wellness .primary-button { border-color: var(--wellness-emerald); background: linear-gradient(135deg, var(--wellness-emerald), var(--wellness-emerald-dark)); box-shadow: 0 10px 20px rgba(3, 70, 52, .16); }
+.app-shell-wellness .secondary-button { border-color: rgba(7, 91, 69, .25); background: rgba(255, 255, 252, .72); color: var(--wellness-emerald); }
+.app-shell-wellness button:focus-visible, .app-shell-wellness a:focus-visible { outline: 3px solid #9bd73c; outline-offset: 3px; }
+
+.app-shell-wellness .workspace-grid { gap: 22px; grid-template-columns: minmax(0, 1.75fr) minmax(300px, .78fr); }
+.app-shell-wellness .video-card, .app-shell-wellness .settings-card, .app-shell-wellness .warning-card { padding: 24px; }
+.app-shell-wellness .card-header h2, .app-shell-wellness .settings-card h2, .app-shell-wellness .warning-card h2 { letter-spacing: -.025em; }
+.app-shell-wellness .video-stage { border-color: rgba(7, 91, 69, .18); border-radius: 20px; background: radial-gradient(circle at 30% 20%, rgba(199, 243, 107, .18), transparent 38%), #08291f; }
+.app-shell-wellness .video-placeholder-wellness {
+  flex-direction: row;
+  justify-content: space-between;
+  padding: 24px 34px;
+  background: linear-gradient(100deg, rgba(5, 47, 35, .98), rgba(8, 72, 51, .88));
+  text-align: left;
+}
+.app-shell-wellness .video-placeholder-copy {
+  display: grid;
+  z-index: 1;
+  max-width: 310px;
+  gap: 8px;
+}
+.app-shell-wellness .video-placeholder-copy strong { font-size: 20px; }
+.app-shell-wellness .video-placeholder-copy span { color: rgba(239, 255, 224, .82); line-height: 1.45; }
+.app-shell-wellness .video-placeholder-wellness img {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: auto;
+  height: 96%;
+  max-width: none;
+  margin: 0;
+  object-fit: contain;
+  object-position: right center;
+  transform: translateY(-50%);
+  opacity: .94;
+}
+.app-shell-wellness .video-footer > div { border-color: rgba(7, 91, 69, .10); background: #f8fdf1; }
+.app-shell-wellness .footer-label, .app-shell-wellness .metric-card span { color: var(--wellness-muted); }
+.app-shell-wellness .video-footer strong, .app-shell-wellness .metric-card strong { color: var(--wellness-ink); }
+.app-shell-wellness .status-idle, .app-shell-wellness .status-starting { color: #336b45; background: #eaf8cf; }
+.app-shell-wellness .status-tracking { color: #075b45; background: #dff6c7; }
+.app-shell-wellness .status-warning { color: #8f6413; background: #fff0b9; }
+.app-shell-wellness .status-face-missing, .app-shell-wellness .status-error { color: #a54033; background: #ffe2da; }
+.app-shell-wellness .settings-select { margin-top: 9px; }
+.app-shell-wellness .calibration-progress { background: #e6f2d8; }
+.app-shell-wellness .calibration-progress span { background: linear-gradient(90deg, #9bd73c, var(--wellness-emerald)); }
+.app-shell-wellness .warning-card-active { border-color: #e7bf59; background: linear-gradient(135deg, #fffbed, #fff1c1); box-shadow: 0 14px 36px rgba(179, 128, 16, .12); }
+.app-shell-wellness .warning-card-active h2 { color: #805e17; }
+.app-shell-wellness .warning-card-active p { color: #8f6413; }
+.app-shell-wellness .metrics-grid { gap: 16px; }
+.app-shell-wellness .metric-card { min-height: 132px; padding: 22px; }
+.app-shell-wellness .metric-card strong { font-size: 30px; letter-spacing: -.04em; }
+.app-shell-wellness .accent-card { border-color: rgba(112, 170, 25, .24); background: linear-gradient(135deg, #e7fac1, #fbfff3); }
+.app-shell-wellness .pomodoro-panel { border-color: rgba(7, 91, 69, .16); background: linear-gradient(135deg, #e7fac1, #faffee); }
+.app-shell-wellness .pomodoro-panel span { color: var(--wellness-emerald); }
+.app-shell-wellness .timer-adjust-button { border-color: rgba(7, 91, 69, .22); color: var(--wellness-emerald); }
+.app-shell-wellness .timer-adjust-button:hover { background: #e8f8c7; }
+.app-shell-wellness .session-end-button { color: #ae4838; border-color: rgba(174, 72, 56, .28); }
+
+@media (max-width: 1080px) {
+  .app-shell-wellness .hero-panel-wellness { padding-top: 84px; }
+  .app-shell-wellness .hero-wellness-nav { left: 24px; right: 24px; }
+  .app-shell-wellness .hero-visual { flex-basis: 300px; }
+  .app-shell-wellness .workspace-grid { grid-template-columns: 1fr; }
+  .app-shell-wellness .sidebar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .app-shell-wellness { gap: 18px; padding: 12px 14px 28px; }
+  .app-shell-wellness .wellness-topbar { top: 8px; display: block; min-height: auto; }
+  .app-shell-wellness .wellness-brand { display: none; }
+  .app-shell-wellness .wellness-topbar .page-switcher { width: 100%; overflow-x: auto; }
+  .app-shell-wellness .hero-panel-wellness { display: block; min-height: 520px; padding: 88px 24px 24px; border-radius: 25px; }
+  .app-shell-wellness h1 { font-size: clamp(2.1rem, 12vw, 3.1rem); }
+  .app-shell-wellness .hero-wellness-nav { top: 16px; right: 16px; left: 16px; display: block; }
+  .app-shell-wellness .hero-wellness-nav .eyebrow { display: none; }
+  .app-shell-wellness .page-switcher { width: 100%; overflow-x: auto; }
+  .app-shell-wellness .page-tab { flex: 0 0 auto; }
+  .app-shell-wellness .hero-visual { position: absolute; right: 0; bottom: 0; width: 100%; height: 270px; }
+  .app-shell-wellness .hero-visual img { right: 50%; bottom: -50px; width: 330px; transform: translateX(50%); }
+  .app-shell-wellness .session-setup-card,
+  .app-shell-wellness .session-setup-fields { grid-template-columns: 1fr; }
+  .app-shell-wellness .session-setup-card { padding: 22px; }
+  .app-shell-wellness .sidebar { display: flex; }
+  .app-shell-wellness .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .app-shell-wellness .metric-card { min-height: 112px; padding: 17px; }
+  .app-shell-wellness .metric-card strong { font-size: 24px; }
+  .app-shell-wellness .video-placeholder-wellness { flex-direction: column; align-items: flex-start; padding: 24px; }
+  .app-shell-wellness .video-placeholder-wellness img { top: auto; right: -2%; bottom: -4%; width: 78%; height: auto; transform: none; object-fit: contain; }
+}
+
 .settings-label {
   display: block;
   margin-top: 18px;
