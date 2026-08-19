@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
+import wellnessHero from '../assets/eyeguard-wellness-hero.png'
 import { useAuth } from '../context/AuthContext'
 import {
   hasAuthErrors,
   validateAuthForm,
   type AuthFormErrors,
-  type AuthMode,
 } from '../lib/formValidation'
 
 type AuthFormState = {
@@ -26,8 +26,7 @@ const initialAuthForm: AuthFormState = {
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const { isReady, currentUser, login, loginAsGuest, register } = useAuth()
-  const [authMode, setAuthMode] = useState<AuthMode>('register')
+  const { isReady, currentUser, login, loginAsGuest } = useAuth()
   const [form, setForm] = useState<AuthFormState>(initialAuthForm)
   const [errors, setErrors] = useState<AuthFormErrors>({})
   const [formError, setFormError] = useState('')
@@ -36,7 +35,7 @@ export function LoginPage() {
     return <Navigate to="/" replace />
   }
 
-  const handleInputChange = (field: keyof AuthFormState, value: string) => {
+  const handleInputChange = (field: 'login' | 'password', value: string) => {
     setForm((currentForm) => ({ ...currentForm, [field]: value }))
     setFormError('')
 
@@ -49,12 +48,6 @@ export function LoginPage() {
     }
   }
 
-  const handleAuthModeChange = (mode: AuthMode) => {
-    setAuthMode(mode)
-    setErrors({})
-    setFormError('')
-  }
-
   const handleGuestLogin = () => {
     loginAsGuest()
     navigate('/')
@@ -63,7 +56,7 @@ export function LoginPage() {
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    const nextErrors = validateAuthForm(authMode, form)
+    const nextErrors = validateAuthForm('login', form)
 
     if (hasAuthErrors(nextErrors)) {
       setErrors(nextErrors)
@@ -71,26 +64,11 @@ export function LoginPage() {
       return
     }
 
-    if (authMode === 'register') {
-      const registerError = register({
-        email: form.email,
-        login: form.login,
-        name: form.fullName,
-        password: form.password,
-        roleId: 2,
-      })
+    const loginError = login(form.login, form.password)
 
-      if (registerError) {
-        setFormError(registerError)
-        return
-      }
-    } else {
-      const loginError = login(form.login, form.password)
-
-      if (loginError) {
-        setFormError(loginError)
-        return
-      }
+    if (loginError) {
+      setFormError(loginError)
+      return
     }
 
     setErrors({})
@@ -98,7 +76,7 @@ export function LoginPage() {
     navigate('/')
   }
 
-  const renderFieldError = (field: keyof AuthFormState) => {
+  const renderFieldError = (field: 'login' | 'password') => {
     const message = errors[field]
 
     if (!message) {
@@ -113,81 +91,36 @@ export function LoginPage() {
   }
 
   return (
-    <main className="auth-shell">
+    <main className="auth-shell auth-shell-wellness">
       <section className="auth-layout">
-        <article className="auth-intro">
+        <article className="auth-intro auth-intro-wellness">
           <span className="eyebrow">EyeGuard</span>
-          <h1>Регистрация и вход в систему мониторинга утомления</h1>
+          <h1>Бережные рабочие сессии для внимания и отдыха глаз</h1>
           <p>
-            Для демонстрации:
-            `apetrova` / `admin123` (администратор) или `ismirnov` / `user123` (пользователь).
+            Войдите в существующий аккаунт или попробуйте приложение без регистрации.
           </p>
+          <div className="auth-wellness-points" aria-label="Преимущества EyeGuard">
+            <span>Обработка камеры на устройстве</span>
+            <span>Гостевой режим без регистрации</span>
+          </div>
+          <img src={wellnessHero} alt="Иллюстрация рабочего места EyeGuard" />
         </article>
 
-        <article className="auth-card">
-          <div className="auth-mode-switcher" role="tablist" aria-label="Формы доступа">
-            <button
-              type="button"
-              className={authMode === 'register' ? 'auth-mode-tab active' : 'auth-mode-tab'}
-              onClick={() => handleAuthModeChange('register')}
-            >
-              Регистрация
-            </button>
-            <button
-              type="button"
-              className={authMode === 'login' ? 'auth-mode-tab active' : 'auth-mode-tab'}
-              onClick={() => handleAuthModeChange('login')}
-            >
-              Вход
-            </button>
-          </div>
-
+        <article className="auth-card auth-card-wellness">
+          <span className="auth-card-brand">EyeGuard</span>
           <div className="auth-card-header">
-            <h2>
-              {authMode === 'register' ? 'Создание учётной записи' : 'Вход в систему'}
-            </h2>
-            <p>
-              {authMode === 'register'
-                ? 'Заполните форму — аккаунт будет добавлен в хранилище приложения.'
-                : 'Введите логин и пароль существующего аккаунта.'}
-            </p>
+            <h2>Вход в EyeGuard</h2>
+            <p>Введите логин и пароль или продолжите в гостевом режиме.</p>
           </div>
 
           <form className="auth-form" onSubmit={handleSubmit} noValidate>
-            {authMode === 'register' ? (
-              <>
-                <label className={`auth-field${errors.fullName ? ' auth-field-invalid' : ''}`}>
-                  <span>Имя Фамилия</span>
-                  <input
-                    type="text"
-                    value={form.fullName}
-                    onChange={(event) => handleInputChange('fullName', event.target.value)}
-                    placeholder="Иванов Иван"
-                    aria-invalid={Boolean(errors.fullName)}
-                  />
-                  {renderFieldError('fullName')}
-                </label>
-                <label className={`auth-field${errors.email ? ' auth-field-invalid' : ''}`}>
-                  <span>Email</span>
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={(event) => handleInputChange('email', event.target.value)}
-                    placeholder="user@mail.ru"
-                    aria-invalid={Boolean(errors.email)}
-                  />
-                  {renderFieldError('email')}
-                </label>
-              </>
-            ) : null}
-
             <label className={`auth-field${errors.login ? ' auth-field-invalid' : ''}`}>
               <span>Логин</span>
               <input
                 type="text"
                 value={form.login}
                 onChange={(event) => handleInputChange('login', event.target.value)}
-                placeholder="username"
+                placeholder="Введите логин"
                 autoComplete="username"
                 aria-invalid={Boolean(errors.login)}
               />
@@ -201,28 +134,11 @@ export function LoginPage() {
                 value={form.password}
                 onChange={(event) => handleInputChange('password', event.target.value)}
                 placeholder="Введите пароль"
-                autoComplete={authMode === 'register' ? 'new-password' : 'current-password'}
+                autoComplete="current-password"
                 aria-invalid={Boolean(errors.password)}
               />
               {renderFieldError('password')}
             </label>
-
-            {authMode === 'register' ? (
-              <label
-                className={`auth-field${errors.confirmPassword ? ' auth-field-invalid' : ''}`}
-              >
-                <span>Повтор пароля</span>
-                <input
-                  type="password"
-                  value={form.confirmPassword}
-                  onChange={(event) => handleInputChange('confirmPassword', event.target.value)}
-                  placeholder="Повторите пароль"
-                  autoComplete="new-password"
-                  aria-invalid={Boolean(errors.confirmPassword)}
-                />
-                {renderFieldError('confirmPassword')}
-              </label>
-            ) : null}
 
             {formError ? (
               <p className="form-error" role="alert">
@@ -232,7 +148,7 @@ export function LoginPage() {
 
             <div className="auth-actions">
               <button className="primary-button" type="submit">
-                {authMode === 'register' ? 'Зарегистрироваться и войти' : 'Войти'}
+                Войти
               </button>
               <button className="secondary-button" type="button" onClick={handleGuestLogin}>
                 Войти без регистрации

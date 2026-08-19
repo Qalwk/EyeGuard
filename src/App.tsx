@@ -3,7 +3,6 @@ import './App.css'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
 import { AdminPage } from './pages/AdminPage'
-import { DatabasePage } from './pages/DatabasePage'
 import { LoginPage } from './pages/LoginPage'
 import { HistoryPage } from './pages/HistoryPage'
 import { MonitorPage } from './pages/MonitorPage'
@@ -15,8 +14,6 @@ function App() {
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/bd" element={<DatabasePage />} />
-        <Route path="/db" element={<Navigate to="/bd" replace />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<MonitorPage />} />
           <Route path="/history" element={<HistoryPage />} />
