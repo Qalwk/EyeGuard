@@ -18,7 +18,13 @@ import {
   anglesFromTransformationMatrix, awayDelayMs, isLookingAway, loadCalibration, loadSensitivity,
   smoothAngles, type AttentionStatus, type CalibrationProfile, type HeadAngles, type Sensitivity,
 } from '../lib/presenceMonitoring'
-import { saveCompletedWorkSession } from '../lib/workSessions'
+import { appendTimelineSegment, buildCompletedWorkSession, replaceTimelineTail } from '../lib/sessionSummary'
+import {
+  saveCompletedWorkSession,
+  type CompletedWorkSession,
+  type TimelineSegment,
+  type TimelineSegmentType,
+} from '../lib/workSessions'
 
 export const THRESHOLD_STORAGE_KEY = 'eyeguard-fatigue-threshold'
 const DEFAULT_THRESHOLD = 55
@@ -30,7 +36,7 @@ const EYE_OPEN_THRESHOLD = 0.24
 const MIN_BLINK_DURATION_MS = 60
 const MAX_BLINK_DURATION_MS = 1200
 const UI_UPDATE_INTERVAL_MS = 180
-const FACE_TIMEOUT_MS = 1500
+const FACE_TIMEOUT_MS = 5000
 
 export type DashboardState = {
   status: MonitoringUiStatus
@@ -43,6 +49,8 @@ export type DashboardState = {
   activeSessionDurationMs: number
   awayDurationMs: number
   manualPauseDurationMs: number
+  pomodoroBreakDurationMs: number
+  untrackedDurationMs: number
   fatigueMetrics: FatigueMetrics
 }
 
@@ -66,6 +74,8 @@ export const initialDashboardState: DashboardState = {
   activeSessionDurationMs: 0,
   awayDurationMs: 0,
   manualPauseDurationMs: 0,
+  pomodoroBreakDurationMs: 0,
+  untrackedDurationMs: 0,
   fatigueMetrics: emptyMetrics,
 }
 
@@ -266,6 +276,7 @@ export type WorkSessionSetup = {
   plannedDurationMinutes?: number
   breakDurationMinutes?: number
   goal?: string
+  ownerId?: string
 }
 
 export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
@@ -291,6 +302,10 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
   const processedFrameCountRef = useRef(0)
   const smoothedAnglesRef = useRef<HeadAngles | null>(null)
   const awayStartedAtRef = useRef<number | null>(null)
+  const missingFaceStartedAtRef = useRef<number | null>(null)
+  const missingFaceConvertedRef = useRef(false)
+  const missingUntrackedMsRef = useRef(0)
+  const stateBeforeMissingRef = useRef<TimelineSegmentType>('untracked')
   const calibrationSamplesRef = useRef<HeadAngles[]>([])
   const calibrationStartedAtRef = useRef<number | null>(null)
   const calibrationRef = useRef<CalibrationProfile | null>(loadCalibration())
@@ -298,7 +313,12 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
   const isCalibratingRef = useRef(false)
   const isPausedRef = useRef(false)
   const sessionSetupRef = useRef<WorkSessionSetup | null>(null)
-  const sessionTimesRef = useRef({ activeMs: 0, awayMs: 0, manualPauseMs: 0 })
+  const sessionPhaseRef = useRef<'focus' | 'break'>('focus')
+  const sessionTimesRef = useRef({ activeMs: 0, awayMs: 0, manualPauseMs: 0, breakMs: 0, untrackedMs: 0 })
+  const timelineRef = useRef<TimelineSegment[]>([])
+  const fatigueScoreIntegralRef = useRef(0)
+  const eyeTrackedDurationMsRef = useRef(0)
+  const eyeWarningDurationMsRef = useRef(0)
 
   const [threshold, setThreshold] = useState(() => loadStoredThreshold())
   const [isMonitoring, setIsMonitoring] = useState(false)
@@ -310,6 +330,8 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
   const [calibrationProgress, setCalibrationProgress] = useState(0)
   const [calibrationMessage, setCalibrationMessage] = useState('')
   const [isPaused, setIsPaused] = useState(false)
+  const [completedSession, setCompletedSession] = useState<CompletedWorkSession | null>(null)
+  const [sessionSaveError, setSessionSaveError] = useState('')
 
   useEffect(() => {
     onDashboardUpdateRef.current = onDashboardUpdate
@@ -334,9 +356,18 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
     processedFrameCountRef.current = 0
     smoothedAnglesRef.current = null
     awayStartedAtRef.current = null
+    missingFaceStartedAtRef.current = null
+    missingFaceConvertedRef.current = false
+    missingUntrackedMsRef.current = 0
+    stateBeforeMissingRef.current = 'untracked'
     calibrationSamplesRef.current = []
     calibrationStartedAtRef.current = null
-    sessionTimesRef.current = { activeMs: 0, awayMs: 0, manualPauseMs: 0 }
+    sessionPhaseRef.current = 'focus'
+    sessionTimesRef.current = { activeMs: 0, awayMs: 0, manualPauseMs: 0, breakMs: 0, untrackedMs: 0 }
+    timelineRef.current = []
+    fatigueScoreIntegralRef.current = 0
+    eyeTrackedDurationMsRef.current = 0
+    eyeWarningDurationMsRef.current = 0
   }, [])
 
   const syncCanvasWithVideo = useCallback(() => {
@@ -366,7 +397,7 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
   }, [])
 
   const stopMonitoring = useCallback(
-    (resetView = true) => {
+    async (saveSession = true) => {
       if (animationFrameRef.current !== null) {
         cancelAnimationFrame(animationFrameRef.current)
         animationFrameRef.current = null
@@ -374,18 +405,24 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
 
       const startedAt = sessionStartedAtRef.current
       const setup = sessionSetupRef.current
-      if (resetView && startedAt && setup) {
-        saveCompletedWorkSession({
+      let result: CompletedWorkSession | null = null
+      if (saveSession && startedAt && setup) {
+        const completedAt = new Date()
+        const totalDurationMs = performance.now() - startedAt
+        result = buildCompletedWorkSession({
           id: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
-          completedAt: new Date().toISOString(),
+          ownerId: setup.ownerId ?? 'guest',
+          startedAt: new Date(completedAt.getTime() - totalDurationMs).toISOString(),
+          completedAt: completedAt.toISOString(),
           goal: setup.goal?.trim() ?? '',
           mode: setup.mode ?? 'free',
           plannedDurationMinutes: setup.plannedDurationMinutes ?? 0,
           breakDurationMinutes: setup.breakDurationMinutes ?? 0,
-          totalDurationMs: performance.now() - startedAt,
-          activeDurationMs: sessionTimesRef.current.activeMs,
-          awayDurationMs: sessionTimesRef.current.awayMs,
-          manualPauseDurationMs: sessionTimesRef.current.manualPauseMs,
+          totalDurationMs,
+          timeline: [...timelineRef.current],
+          fatigueScoreIntegral: fatigueScoreIntegralRef.current,
+          eyeTrackedDurationMs: eyeTrackedDurationMsRef.current,
+          eyeWarningDurationMs: eyeWarningDurationMsRef.current,
         })
       }
       stopMediaStream()
@@ -393,14 +430,44 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
       sessionSetupRef.current = null
       drawOverlay(canvasRef.current, null, false)
 
-      if (resetView) {
+      if (saveSession) {
         setIsMonitoring(false)
         setErrorMessage('')
         updateDashboard(initialDashboardState)
       }
+      if (result) {
+        setSessionSaveError('')
+        try {
+          await saveCompletedWorkSession(result)
+          setCompletedSession(result)
+        } catch {
+          setCompletedSession(result)
+          setSessionSaveError('Не удалось сохранить итог в историю. Результат не потерян — попробуйте ещё раз.')
+        }
+      }
+      return result
     },
     [resetRuntimeData, stopMediaStream, updateDashboard],
   )
+
+  const retryCompletedSessionSave = useCallback(async () => {
+    if (!completedSession) return
+    try {
+      await saveCompletedWorkSession(completedSession)
+      setSessionSaveError('')
+    } catch {
+      setSessionSaveError('История пока недоступна. Проверьте настройки хранения данных браузера и повторите попытку.')
+    }
+  }, [completedSession])
+
+  const clearCompletedSession = useCallback(() => {
+    setCompletedSession(null)
+    setSessionSaveError('')
+  }, [])
+
+  const setSessionPhase = useCallback((phase: 'focus' | 'break') => {
+    sessionPhaseRef.current = phase
+  }, [])
 
   const ensureFaceLandmarker = useCallback(async () => {
     if (faceLandmarkerRef.current) {
@@ -456,7 +523,7 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
 
   useEffect(() => {
     return () => {
-      stopMonitoring(false)
+      void stopMonitoring(false)
       faceLandmarkerRef.current?.close()
       faceLandmarkerRef.current = null
     }
@@ -469,7 +536,9 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
       return
     }
 
-    stopMonitoring(false)
+    await stopMonitoring(false)
+    setCompletedSession(null)
+    setSessionSaveError('')
     sessionSetupRef.current = setup ?? { mode: 'free' }
     setErrorMessage('')
     setIsMonitoring(true)
@@ -547,8 +616,20 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
 
         const nowMs = performance.now()
         processedFrameCountRef.current += 1
-        const frameDeltaMs = nowMs - (lastFrameTimestampRef.current ?? nowMs)
+        const frameStartedAt = lastFrameTimestampRef.current ?? nowMs
+        const frameDeltaMs = nowMs - frameStartedAt
         lastFrameTimestampRef.current = nowMs
+        const sessionStartedAt = sessionStartedAtRef.current
+        const recordInterval = (
+          type: TimelineSegmentType,
+          reason?: TimelineSegment['reason'],
+        ) => appendTimelineSegment(
+          timelineRef.current,
+          type,
+          Math.max(0, frameStartedAt - sessionStartedAt),
+          Math.max(0, nowMs - sessionStartedAt),
+          reason,
+        )
 
         const result = faceLandmarker.detectForVideo(activeVideo, nowMs)
         const landmarks = result.faceLandmarks[0]
@@ -558,11 +639,66 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
 
         if (hasFace) {
           lastFaceSeenAtRef.current = nowMs
+          if (missingFaceStartedAtRef.current !== null && !missingFaceConvertedRef.current) {
+            const fallbackType = stateBeforeMissingRef.current
+            if (fallbackType === 'active' || fallbackType === 'away') {
+              sessionTimesRef.current.untrackedMs = Math.max(0, sessionTimesRef.current.untrackedMs - missingUntrackedMsRef.current)
+              if (fallbackType === 'active') sessionTimesRef.current.activeMs += missingUntrackedMsRef.current
+              else sessionTimesRef.current.awayMs += missingUntrackedMsRef.current
+              replaceTimelineTail(
+                timelineRef.current,
+                Math.max(0, missingFaceStartedAtRef.current - sessionStartedAt),
+                fallbackType,
+                Math.max(0, nowMs - sessionStartedAt),
+                fallbackType === 'away' ? 'looking-away' : undefined,
+              )
+            }
+          }
+          missingFaceStartedAtRef.current = null
+          missingFaceConvertedRef.current = false
+          missingUntrackedMsRef.current = 0
         }
 
         if (!hasFace) {
           if (isPausedRef.current) {
             sessionTimesRef.current.manualPauseMs += frameDeltaMs
+            recordInterval('manual-pause', 'user-paused')
+            missingFaceStartedAtRef.current = null
+            missingUntrackedMsRef.current = 0
+          } else if (sessionPhaseRef.current === 'break') {
+            sessionTimesRef.current.breakMs += frameDeltaMs
+            recordInterval('pomodoro-break', 'scheduled-break')
+            missingFaceStartedAtRef.current = null
+            missingUntrackedMsRef.current = 0
+          } else {
+            if (missingFaceStartedAtRef.current === null) {
+              missingFaceStartedAtRef.current = frameStartedAt
+              missingFaceConvertedRef.current = false
+              missingUntrackedMsRef.current = 0
+              const previous = timelineRef.current[timelineRef.current.length - 1]
+              stateBeforeMissingRef.current = previous?.type ?? 'untracked'
+            }
+            if (missingFaceConvertedRef.current) {
+              sessionTimesRef.current.awayMs += frameDeltaMs
+              recordInterval('away', 'face-missing')
+            } else {
+              sessionTimesRef.current.untrackedMs += frameDeltaMs
+              missingUntrackedMsRef.current += frameDeltaMs
+              recordInterval('untracked', 'camera-uncertain')
+              if (nowMs - missingFaceStartedAtRef.current >= FACE_TIMEOUT_MS) {
+                sessionTimesRef.current.untrackedMs = Math.max(0, sessionTimesRef.current.untrackedMs - missingUntrackedMsRef.current)
+                sessionTimesRef.current.awayMs += missingUntrackedMsRef.current
+                replaceTimelineTail(
+                  timelineRef.current,
+                  Math.max(0, missingFaceStartedAtRef.current - sessionStartedAt),
+                  'away',
+                  Math.max(0, nowMs - sessionStartedAt),
+                  'face-missing',
+                )
+                missingFaceConvertedRef.current = true
+                missingUntrackedMsRef.current = 0
+              }
+            }
           }
           if (isCalibratingRef.current) {
             calibrationSamplesRef.current = []
@@ -572,7 +708,7 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
           }
           if (
             lastFaceSeenAtRef.current !== null &&
-            nowMs - lastFaceSeenAtRef.current > FACE_TIMEOUT_MS
+            nowMs - lastFaceSeenAtRef.current >= FACE_TIMEOUT_MS
           ) {
             eyeClosedRef.current = false
             closedStartedAtRef.current = null
@@ -590,6 +726,8 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
                 activeSessionDurationMs: sessionTimesRef.current.activeMs,
                 awayDurationMs: sessionTimesRef.current.awayMs,
                 manualPauseDurationMs: sessionTimesRef.current.manualPauseMs,
+                pomodoroBreakDurationMs: sessionTimesRef.current.breakMs,
+                untrackedDurationMs: sessionTimesRef.current.untrackedMs,
                 fatigueMetrics: buildFatigueMetrics({
                   blinkEvents: blinkEventsRef.current,
                   sessionDurationMs: nowMs - (sessionStartedAtRef.current ?? nowMs),
@@ -646,13 +784,34 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
           }
         }
 
-        if (attentionStatus === 'active') {
-          sessionTimesRef.current.activeMs += frameDeltaMs
+        let timelineType: TimelineSegmentType = 'untracked'
+        let timelineReason: TimelineSegment['reason'] = 'camera-uncertain'
+        if (isPausedRef.current) {
+          timelineType = 'manual-pause'
+          timelineReason = 'user-paused'
+        } else if (sessionPhaseRef.current === 'break') {
+          timelineType = 'pomodoro-break'
+          timelineReason = 'scheduled-break'
+        } else if (attentionStatus === 'active') {
+          timelineType = 'active'
+          timelineReason = undefined
         } else if (attentionStatus === 'away') {
-          sessionTimesRef.current.awayMs += frameDeltaMs
-        } else if (attentionStatus === 'paused') {
-          sessionTimesRef.current.manualPauseMs += frameDeltaMs
+          timelineType = 'away'
+          timelineReason = 'looking-away'
         }
+
+        if (timelineType === 'active') {
+          sessionTimesRef.current.activeMs += frameDeltaMs
+        } else if (timelineType === 'away') {
+          sessionTimesRef.current.awayMs += frameDeltaMs
+        } else if (timelineType === 'manual-pause') {
+          sessionTimesRef.current.manualPauseMs += frameDeltaMs
+        } else if (timelineType === 'pomodoro-break') {
+          sessionTimesRef.current.breakMs += frameDeltaMs
+        } else {
+          sessionTimesRef.current.untrackedMs += frameDeltaMs
+        }
+        recordInterval(timelineType, timelineReason)
 
         if (eyeClosedRef.current) {
           totalClosedEyeMsRef.current += frameDeltaMs
@@ -668,6 +827,7 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
           closedStartedAtRef.current = null
 
           if (
+            timelineType === 'active' &&
             blinkDurationMs >= MIN_BLINK_DURATION_MS &&
             blinkDurationMs <= MAX_BLINK_DURATION_MS
           ) {
@@ -693,6 +853,12 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
           fatigueMetrics.blinkRatePerMinute,
         )
 
+        if (timelineType === 'active') {
+          fatigueScoreIntegralRef.current += fatigueMetrics.fatigueScore * frameDeltaMs
+          eyeTrackedDurationMsRef.current += frameDeltaMs
+          if (nextStatus === 'warning') eyeWarningDurationMsRef.current += frameDeltaMs
+        }
+
         if (nowMs - lastUiUpdateRef.current > UI_UPDATE_INTERVAL_MS) {
           lastUiUpdateRef.current = nowMs
           updateDashboard({
@@ -706,6 +872,8 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
             activeSessionDurationMs: sessionTimesRef.current.activeMs,
             awayDurationMs: sessionTimesRef.current.awayMs,
             manualPauseDurationMs: sessionTimesRef.current.manualPauseMs,
+            pomodoroBreakDurationMs: sessionTimesRef.current.breakMs,
+            untrackedDurationMs: sessionTimesRef.current.untrackedMs,
             fatigueMetrics,
           })
         }
@@ -717,7 +885,7 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
       const devices = await navigator.mediaDevices.enumerateDevices().catch(() => [])
       const videoInputCount = devices.filter((device) => device.kind === 'videoinput').length
 
-      stopMonitoring(false)
+      void stopMonitoring(false)
       setIsMonitoring(false)
       setErrorMessage(getCameraErrorMessage(error, permissionState, videoInputCount))
       updateDashboard({ ...initialDashboardState, status: 'error' })
@@ -749,5 +917,10 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
     setPaused,
     startMonitoring,
     stopMonitoring,
+    setSessionPhase,
+    completedSession,
+    sessionSaveError,
+    retryCompletedSessionSave,
+    clearCompletedSession,
   }
 }

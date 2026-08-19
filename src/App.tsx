@@ -5,8 +5,10 @@ import { AuthProvider } from './context/AuthContext'
 import { AdminPage } from './pages/AdminPage'
 import { DatabasePage } from './pages/DatabasePage'
 import { LoginPage } from './pages/LoginPage'
+import { HistoryPage } from './pages/HistoryPage'
 import { MonitorPage } from './pages/MonitorPage'
 import { RoadmapPage } from './pages/RoadmapPage'
+import { SessionDetailPage } from './pages/SessionDetailPage'
 
 function App() {
   return (
@@ -17,6 +19,8 @@ function App() {
         <Route path="/db" element={<Navigate to="/bd" replace />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<MonitorPage />} />
+          <Route path="/history" element={<HistoryPage />} />
+          <Route path="/history/:sessionId" element={<SessionDetailPage />} />
           <Route path="/roadmap" element={<RoadmapPage />} />
         </Route>
         <Route element={<ProtectedRoute requireAdmin />}>

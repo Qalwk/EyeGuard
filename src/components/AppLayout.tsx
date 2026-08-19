@@ -36,6 +36,12 @@ export function AppLayout({
         Мониторинг
       </NavLink>
       <NavLink
+        to="/history"
+        className={({ isActive }) => (isActive ? 'page-tab active' : 'page-tab')}
+      >
+        История
+      </NavLink>
+      <NavLink
         to="/roadmap"
         className={({ isActive }) => (isActive ? 'page-tab active' : 'page-tab')}
       >
