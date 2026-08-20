@@ -41,6 +41,7 @@ export type CompletedWorkSession = {
   ownerId: string
   startedAt: string
   completedAt: string
+  taskId?: string
   goal: string
   mode: SessionMode
   plannedDurationMinutes: number
@@ -116,6 +117,7 @@ export function migrateLegacySession(session: LegacySession): CompletedWorkSessi
     ownerId: 'legacy',
     startedAt,
     completedAt: session.completedAt,
+    taskId: session.taskId,
     goal: session.goal ?? '',
     mode: session.mode ?? 'free',
     plannedDurationMinutes: session.plannedDurationMinutes ?? 0,
@@ -190,6 +192,12 @@ export function sessionsBeyondRetention(sessions: CompletedWorkSession[]) {
   return [...sessions]
     .sort((first, second) => second.completedAt.localeCompare(first.completedAt))
     .slice(MAX_SESSIONS_PER_OWNER)
+}
+
+export function mergeWorkSessionHistories(...groups: CompletedWorkSession[][]) {
+  const byId = new Map<string, CompletedWorkSession>()
+  groups.flat().forEach((session) => byId.set(session.id, session))
+  return [...byId.values()].sort((first, second) => second.completedAt.localeCompare(first.completedAt))
 }
 
 export async function loadCompletedWorkSessions(ownerId: string) {

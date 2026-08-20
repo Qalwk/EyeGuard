@@ -42,6 +42,12 @@ export function AppLayout({
         История
       </NavLink>
       <NavLink
+        to="/tasks"
+        className={({ isActive }) => (isActive ? 'page-tab active' : 'page-tab')}
+      >
+        Задачи
+      </NavLink>
+      <NavLink
         to="/roadmap"
         className={({ isActive }) => (isActive ? 'page-tab active' : 'page-tab')}
       >

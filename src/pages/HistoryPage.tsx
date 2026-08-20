@@ -7,9 +7,11 @@ import {
   clearCompletedWorkSessions,
   loadCompletedWorkSessions,
   loadLegacyWorkSessions,
+  mergeWorkSessionHistories,
   ownerIdForUser,
   type CompletedWorkSession,
 } from '../lib/workSessions'
+import { formatTaskDuration, loadWorkTasks, type WorkTask } from '../lib/workTasks'
 
 const weekdayNames = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
 
@@ -40,7 +42,7 @@ export function HistoryPage() {
   const navigate = useNavigate()
   const ownerId = ownerIdForUser(currentUser?.id ?? 0)
   const [sessions, setSessions] = useState<CompletedWorkSession[]>([])
-  const [legacySessions, setLegacySessions] = useState<CompletedWorkSession[]>([])
+  const [tasks, setTasks] = useState<WorkTask[]>([])
   const [month, setMonth] = useState(() => new Date())
   const [selectedDate, setSelectedDate] = useState(() => localDateKey(new Date()))
   const [isLoading, setIsLoading] = useState(true)
@@ -51,10 +53,11 @@ export function HistoryPage() {
     setError('')
     try {
       const [personal, legacy] = await Promise.all([loadCompletedWorkSessions(ownerId), loadLegacyWorkSessions()])
-      setSessions(personal)
-      setLegacySessions(legacy)
-      if (personal.length > 0) {
-        const latest = new Date(personal[0].completedAt)
+      const combined = mergeWorkSessionHistories(personal, legacy)
+      setSessions(combined)
+      setTasks(loadWorkTasks(ownerId))
+      if (combined.length > 0) {
+        const latest = new Date(combined[0].completedAt)
         setSelectedDate(localDateKey(latest))
         setMonth(new Date(latest.getFullYear(), latest.getMonth(), 1))
       }
@@ -72,14 +75,19 @@ export function HistoryPage() {
     ;(result[key] ??= []).push(session)
     return result
   }, {}), [sessions])
-  const selectedSessions = grouped[selectedDate] ?? []
+  const selectedSessions = useMemo(() => grouped[selectedDate] ?? [], [grouped, selectedDate])
+  const selectedTaskTime = useMemo(() => selectedSessions.reduce<Record<string, number>>((result, session) => {
+    if (session.taskId) result[session.taskId] = (result[session.taskId] ?? 0) + session.activeDurationMs
+    return result
+  }, {}), [selectedSessions])
+  const taskById = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks])
   const cells = calendarCells(month)
 
   const moveMonth = (offset: number) => setMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1))
   const clearHistory = async () => {
-    if (!window.confirm('Удалить всю историю этого пользователя? Восстановить её не получится.')) return
+    if (!window.confirm('Удалить всю историю, включая старые сессии этого устройства? Восстановить её не получится.')) return
     try {
-      await clearCompletedWorkSessions(ownerId)
+      await Promise.all([clearCompletedWorkSessions(ownerId), clearCompletedWorkSessions('legacy')])
       setSessions([])
     } catch {
       setError('Не удалось очистить историю. Попробуйте ещё раз.')
@@ -104,12 +112,12 @@ export function HistoryPage() {
 
       <aside className="history-day-card">
         <div className="summary-section-heading"><div><span>Выбранный день</span><h2>{new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long' }).format(new Date(`${selectedDate}T12:00:00`))}</h2></div></div>
+        {Object.keys(selectedTaskTime).length > 0 ? <div className="history-task-totals"><span>Время по задачам</span>{Object.entries(selectedTaskTime).map(([taskId, durationMs]) => { const task = taskById.get(taskId); return <div key={taskId}><i style={{ backgroundColor: task?.color ?? '#789086' }} /><strong>{task?.title ?? 'Удалённая задача'}</strong><span>{formatTaskDuration(durationMs)}</span></div> })}</div> : null}
         {isLoading ? <p className="empty-copy">Загружаем историю…</p> : selectedSessions.length === 0 ? <p className="empty-copy">В этот день завершённых сессий нет.</p> : <div className="history-session-list">{selectedSessions.map((session) => <button type="button" key={session.id} onClick={() => navigate(`/history/${session.id}`)}><span><strong>{new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' }).format(new Date(session.completedAt))}</strong><small>{modeLabel(session.mode)}{session.goal ? ` · ${session.goal}` : ''}</small></span><span className="history-list-score">{session.score.total ?? '—'} / 100<small>{formatSessionDuration(session.activeDurationMs)} активно</small></span></button>)}</div>}
       </aside>
     </section>
 
     <div className="history-footer-actions"><button type="button" className="secondary-button session-delete-button" onClick={() => void clearHistory()} disabled={sessions.length === 0}>Очистить мою историю</button></div>
 
-    {legacySessions.length > 0 ? <section className="legacy-history"><div className="summary-section-heading"><div><span>До обновления</span><h2>Сессии этого устройства</h2></div></div><p>У этих записей нет владельца и подробного таймлайна, поэтому они не входят в личный календарь.</p><div className="history-session-list">{legacySessions.map((session) => <button type="button" key={session.id} onClick={() => navigate(`/history/${session.id}`)}><span><strong>{new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(session.completedAt))}</strong><small>{session.goal || modeLabel(session.mode)}</small></span><span className="history-list-score">— / 100<small>{formatSessionDuration(session.activeDurationMs)} активно</small></span></button>)}</div></section> : null}
   </AppLayout>
 }

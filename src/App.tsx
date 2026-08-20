@@ -8,6 +8,7 @@ import { HistoryPage } from './pages/HistoryPage'
 import { MonitorPage } from './pages/MonitorPage'
 import { RoadmapPage } from './pages/RoadmapPage'
 import { SessionDetailPage } from './pages/SessionDetailPage'
+import { TasksPage } from './pages/TasksPage'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<MonitorPage />} />
+          <Route path="/tasks" element={<TasksPage />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/history/:sessionId" element={<SessionDetailPage />} />
           <Route path="/roadmap" element={<RoadmapPage />} />

@@ -5,6 +5,7 @@ export type SessionSummaryInput = {
   ownerId: string
   startedAt: string
   completedAt: string
+  taskId?: string
   goal: string
   mode: SessionMode
   plannedDurationMinutes: number
@@ -88,7 +89,7 @@ export function buildCompletedWorkSession(input: SessionSummaryInput): Completed
 
   return {
     schemaVersion: 2, id: input.id, ownerId: input.ownerId, startedAt: input.startedAt, completedAt: input.completedAt,
-    goal: input.goal, mode: input.mode, plannedDurationMinutes: input.plannedDurationMinutes, breakDurationMinutes: input.breakDurationMinutes,
+    taskId: input.taskId, goal: input.goal, mode: input.mode, plannedDurationMinutes: input.plannedDurationMinutes, breakDurationMinutes: input.breakDurationMinutes,
     totalDurationMs: input.totalDurationMs, activeDurationMs, awayDurationMs, manualPauseDurationMs, pomodoroBreakDurationMs, untrackedDurationMs,
     awayEventCount, eyeTrackedDurationMs: input.eyeTrackedDurationMs, eyeWarningDurationMs: input.eyeWarningDurationMs,
     score: { total, presencePoints, stabilityPoints, eyePoints, activeRatio, normalizedAwayEvents, averageFatigueScore, measurementCoverage: measuredWorkMs + untrackedDurationMs > 0 ? measuredWorkMs / (measuredWorkMs + untrackedDurationMs) : 0 },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { migrateLegacySession, sessionsBeyondRetention, type CompletedWorkSession } from './workSessions'
+import { mergeWorkSessionHistories, migrateLegacySession, sessionsBeyondRetention, type CompletedWorkSession } from './workSessions'
 
 describe('миграция истории сессий', () => {
   it('переносит старую запись в отдельную legacy-группу без потери длительностей', () => {
@@ -30,5 +30,12 @@ describe('миграция истории сессий', () => {
     const stale = sessionsBeyondRetention(sessions)
     expect(stale).toHaveLength(2)
     expect(stale.map((session) => session.id)).toEqual(['1', '0'])
+  })
+
+  it('объединяет личные и старые сессии для календаря по дате', () => {
+    const personal = [{ id: 'personal', completedAt: '2026-08-19T10:00:00.000Z' }] as CompletedWorkSession[]
+    const legacy = [{ id: 'legacy', completedAt: '2026-08-16T11:58:00.000Z', ownerId: 'legacy' }] as CompletedWorkSession[]
+
+    expect(mergeWorkSessionHistories(personal, legacy).map((session) => session.id)).toEqual(['personal', 'legacy'])
   })
 })

@@ -288,6 +288,7 @@ type UseEyeMonitoringOptions = {
 
 export type WorkSessionSetup = {
   mode?: 'free' | 'pomodoro' | 'smart-pomodoro'
+  taskId?: string
   plannedDurationMinutes?: number
   breakDurationMinutes?: number
   goal?: string
@@ -455,6 +456,7 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
           ownerId: setup.ownerId ?? 'guest',
           startedAt: new Date(completedAt.getTime() - totalDurationMs).toISOString(),
           completedAt: completedAt.toISOString(),
+          taskId: setup.taskId,
           goal: setup.goal?.trim() ?? '',
           mode: setup.mode ?? 'free',
           plannedDurationMinutes: setup.plannedDurationMinutes ?? 0,

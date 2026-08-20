@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { AppLayout } from '../components/AppLayout'
 import { SessionSummary } from '../components/SessionSummary'
 import wellnessHero from '../assets/eyeguard-wellness-hero.png'
@@ -9,6 +9,7 @@ import { APP_LABELS, getStatusBadgeText } from '../lib/appLabels'
 import { formatSessionDuration } from '../lib/eyeMetrics'
 import { EYE_SYMPTOM_LABELS, type EyeSymptom } from '../lib/eyeStrain'
 import { ownerIdForUser } from '../lib/workSessions'
+import { findWorkTask, type WorkTask } from '../lib/workTasks'
 
 type SessionMode = 'free' | 'pomodoro' | 'smart-pomodoro'
 type PomodoroPhase = 'focus' | 'break'
@@ -31,7 +32,9 @@ function playPhaseSound(context: AudioContext | null) {
 
 export function MonitorPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { currentUser } = useAuth()
+  const ownerId = ownerIdForUser(currentUser?.id ?? 0)
   const displayStreamRef = useRef<MediaStream | null>(null)
   const isStoppingTabShareRef = useRef(false)
   const audioContextRef = useRef<AudioContext | null>(null)
@@ -46,6 +49,7 @@ export function MonitorPage() {
   const [focusMinutes, setFocusMinutes] = useState('25')
   const [breakMinutes, setBreakMinutes] = useState('5')
   const [sessionGoal, setSessionGoal] = useState('')
+  const [activeTask, setActiveTask] = useState<WorkTask | null>(null)
   const [phase, setPhase] = useState<PomodoroPhase>('focus')
   const [phaseRemainingMs, setPhaseRemainingMs] = useState(0)
   const {
@@ -59,7 +63,16 @@ export function MonitorPage() {
   const statusText = useMemo(() => getStatusBadgeText(dashboard.status, errorMessage), [dashboard.status, errorMessage])
   const focusDurationMinutes = Math.min(Math.max(Number(focusMinutes) || 25, 1), 480)
   const breakDurationMinutes = Math.min(Math.max(Number(breakMinutes) || 5, 1), 180)
-  const sessionSetup = useMemo<WorkSessionSetup>(() => ({ mode, plannedDurationMinutes: mode === 'free' ? undefined : focusDurationMinutes, breakDurationMinutes: mode === 'free' ? undefined : breakDurationMinutes, goal: sessionGoal, ownerId: ownerIdForUser(currentUser?.id ?? 0) }), [breakDurationMinutes, currentUser?.id, focusDurationMinutes, mode, sessionGoal])
+  const sessionSetup = useMemo<WorkSessionSetup>(() => ({ mode, taskId: activeTask?.id, plannedDurationMinutes: mode === 'free' ? undefined : focusDurationMinutes, breakDurationMinutes: mode === 'free' ? undefined : breakDurationMinutes, goal: sessionGoal, ownerId }), [activeTask?.id, breakDurationMinutes, focusDurationMinutes, mode, ownerId, sessionGoal])
+
+  useEffect(() => {
+    const taskId = searchParams.get('task')
+    if (!taskId || isMonitoring) return
+    const task = findWorkTask(ownerId, taskId)
+    if (!task) return
+    setActiveTask(task)
+    setSessionGoal(task.title)
+  }, [isMonitoring, ownerId, searchParams])
 
   useEffect(() => {
     activeTimeRef.current = dashboard.activeSessionDurationMs
@@ -166,7 +179,7 @@ export function MonitorPage() {
     variant="wellness"
   >
     {shareError ? <p className="form-error" role="alert">{shareError}</p> : null}
-    {!isMonitoring ? <section className="session-setup-card"><div><h2>Выберите режим</h2><p>Цель необязательна. Режим запускается через демонстрацию вкладки.</p></div><div className="session-setup-fields"><label>Режим<select value={mode} onChange={(event) => setMode(event.target.value as SessionMode)}><option value="free">Свободный режим</option><option value="pomodoro">Помодоро</option><option value="smart-pomodoro">Умный помодоро</option></select></label>{mode !== 'free' ? <><label>Работа, мин.<select value={focusMinutes} onChange={(event) => setFocusMinutes(event.target.value)}>{DURATION_OPTIONS.map((value) => <option key={value} value={value}>{value} минут</option>)}</select></label><label>Перерыв, мин.<input type="number" min="1" max="180" value={breakMinutes} onChange={(event) => setBreakMinutes(event.target.value)} /></label></> : null}<label className="session-goal-field">Цель (необязательно)<input value={sessionGoal} maxLength={160} placeholder="Например, подготовить отчёт" onChange={(event) => setSessionGoal(event.target.value)} /></label><button className="primary-button session-start-button" type="button" onClick={() => void handleStartTabShareMonitoring()} disabled={isTabShared}>{isTabShared ? 'Демонстрация вкладки включена' : 'Запустить через демонстрацию вкладки'}</button></div></section> : null}
+    {!isMonitoring ? <section className="session-setup-card"><div><h2>{activeTask ? 'Продолжить задачу' : 'Выберите режим'}</h2><p>{activeTask ? 'Сессия будет записана в карточку, а работа может продолжаться и после 100%.' : 'Цель необязательна. Режим запускается через демонстрацию вкладки.'}</p>{activeTask ? <div className="monitor-task-context" style={{ '--task-color': activeTask.color } as CSSProperties}><i /><span><small>Задача</small><strong>{activeTask.title}</strong></span><button type="button" onClick={() => { setActiveTask(null); setSessionGoal(''); navigate('/', { replace: true }) }}>Отвязать</button></div> : null}</div><div className="session-setup-fields"><label>Режим<select value={mode} onChange={(event) => setMode(event.target.value as SessionMode)}><option value="free">Свободный режим</option><option value="pomodoro">Помодоро</option><option value="smart-pomodoro">Умный помодоро</option></select></label>{mode !== 'free' ? <><label>Работа, мин.<select value={focusMinutes} onChange={(event) => setFocusMinutes(event.target.value)}>{DURATION_OPTIONS.map((value) => <option key={value} value={value}>{value} минут</option>)}</select></label><label>Перерыв, мин.<input type="number" min="1" max="180" value={breakMinutes} onChange={(event) => setBreakMinutes(event.target.value)} /></label></> : null}<label className="session-goal-field">Цель (необязательно)<input value={sessionGoal} maxLength={160} placeholder="Например, подготовить отчёт" onChange={(event) => setSessionGoal(event.target.value)} /></label><button className="primary-button session-start-button" type="button" onClick={() => void handleStartTabShareMonitoring()} disabled={isTabShared}>{isTabShared ? 'Демонстрация вкладки включена' : activeTask ? 'Начать работу над задачей' : 'Запустить через демонстрацию вкладки'}</button></div></section> : null}
     {isMonitoring ? <section className="pomodoro-panel session-control-panel" aria-live="polite"><span>{mode === 'free' ? 'Свободный режим' : phase === 'focus' ? 'Работа' : 'Перерыв'}</span><div className="timer-adjuster">{mode !== 'free' ? <button className="timer-adjust-button" type="button" onClick={() => adjustPhaseTime(-5)} aria-label="Убавить 5 минут">−</button> : null}<strong>{formatSessionDuration(mode === 'free' ? dashboard.activeSessionDurationMs : phaseRemainingMs)}</strong>{mode !== 'free' ? <button className="timer-adjust-button" type="button" onClick={() => adjustPhaseTime(5)} aria-label="Добавить 5 минут">+</button> : null}</div><p>{mode === 'free' ? `Активное время. ${attentionText}` : phase === 'break' ? 'Время отдыха идёт независимо от внимания.' : smartWaiting ? `Рабочий таймер ждёт: ${attentionText.toLowerCase()}.` : mode === 'smart-pomodoro' ? 'Рабочий таймер идёт только когда вы у экрана.' : 'Рабочий таймер идёт непрерывно.'}</p><div className="session-control-actions"><button className="secondary-button" type="button" onClick={() => setPaused(!isPaused)}>{isPaused ? 'Продолжить' : 'Поставить на паузу'}</button><button className="secondary-button session-end-button" type="button" onClick={() => void handleStop()}>{mode === 'free' ? 'Завершить сессию' : 'Завершить стрик'}</button></div></section> : null}
     <section className="workspace-grid">
       <article className="video-card">
