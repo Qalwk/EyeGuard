@@ -9,7 +9,7 @@ import { APP_LABELS, getStatusBadgeText } from '../lib/appLabels'
 import { formatSessionDuration } from '../lib/eyeMetrics'
 import { EYE_SYMPTOM_LABELS, type EyeSymptom } from '../lib/eyeStrain'
 import { ownerIdForUser } from '../lib/workSessions'
-import { findWorkTask, type WorkTask } from '../lib/workTasks'
+import { findWorkTask, loadWorkTasks, saveWorkTask, type WorkTask } from '../lib/workTasks'
 
 type SessionMode = 'free' | 'pomodoro' | 'smart-pomodoro'
 type PomodoroPhase = 'focus' | 'break'
@@ -63,6 +63,7 @@ export function MonitorPage() {
   const statusText = useMemo(() => getStatusBadgeText(dashboard.status, errorMessage), [dashboard.status, errorMessage])
   const focusDurationMinutes = Math.min(Math.max(Number(focusMinutes) || 25, 1), 480)
   const breakDurationMinutes = Math.min(Math.max(Number(breakMinutes) || 5, 1), 180)
+  const availableTasks = useMemo(() => loadWorkTasks(ownerId), [ownerId])
   const sessionSetup = useMemo<WorkSessionSetup>(() => ({ mode, taskId: activeTask?.id, plannedDurationMinutes: mode === 'free' ? undefined : focusDurationMinutes, breakDurationMinutes: mode === 'free' ? undefined : breakDurationMinutes, goal: sessionGoal, ownerId }), [activeTask?.id, breakDurationMinutes, focusDurationMinutes, mode, ownerId, sessionGoal])
 
   useEffect(() => {
@@ -129,6 +130,19 @@ export function MonitorPage() {
     return () => window.clearInterval(interval)
   }, [breakDurationMinutes, focusDurationMinutes, isMonitoring, isPaused, mode, setSessionPhase])
 
+  const handleTaskSelection = (taskId: string) => {
+    const task = availableTasks.find((item) => item.id === taskId) ?? null
+    if (!task) {
+      if (activeTask && sessionGoal === activeTask.title) setSessionGoal('')
+      setActiveTask(null)
+      navigate('/', { replace: true })
+      return
+    }
+    setActiveTask(task)
+    setSessionGoal(task.title)
+    navigate(`/?task=${encodeURIComponent(task.id)}`, { replace: true })
+  }
+
   const handleStartTabShareMonitoring = async () => {
     if (!navigator.mediaDevices?.getDisplayMedia) return setShareError('Этот браузер не поддерживает демонстрацию вкладки.')
     setShareError('')
@@ -141,6 +155,11 @@ export function MonitorPage() {
       displayStreamRef.current = stream
       setIsTabShared(true)
       stream.getVideoTracks()[0]?.addEventListener('ended', () => { displayStreamRef.current = null; setIsTabShared(false); if (!isStoppingTabShareRef.current) setShareError('Демонстрация вкладки была остановлена браузером.') })
+      if (activeTask?.status === 'planned') {
+        const startedTask: WorkTask = { ...activeTask, status: 'in-progress', updatedAt: new Date().toISOString() }
+        saveWorkTask(startedTask)
+        setActiveTask(startedTask)
+      }
       await startMonitoring(sessionSetup)
     } catch (error) {
       stopTabShare()
@@ -179,7 +198,20 @@ export function MonitorPage() {
     variant="wellness"
   >
     {shareError ? <p className="form-error" role="alert">{shareError}</p> : null}
-    {!isMonitoring ? <section className="session-setup-card"><div><h2>{activeTask ? 'Продолжить задачу' : 'Выберите режим'}</h2><p>{activeTask ? 'Сессия будет записана в карточку, а работа может продолжаться и после 100%.' : 'Цель необязательна. Режим запускается через демонстрацию вкладки.'}</p>{activeTask ? <div className="monitor-task-context" style={{ '--task-color': activeTask.color } as CSSProperties}><i /><span><small>Задача</small><strong>{activeTask.title}</strong></span><button type="button" onClick={() => { setActiveTask(null); setSessionGoal(''); navigate('/', { replace: true }) }}>Отвязать</button></div> : null}</div><div className="session-setup-fields"><label>Режим<select value={mode} onChange={(event) => setMode(event.target.value as SessionMode)}><option value="free">Свободный режим</option><option value="pomodoro">Помодоро</option><option value="smart-pomodoro">Умный помодоро</option></select></label>{mode !== 'free' ? <><label>Работа, мин.<select value={focusMinutes} onChange={(event) => setFocusMinutes(event.target.value)}>{DURATION_OPTIONS.map((value) => <option key={value} value={value}>{value} минут</option>)}</select></label><label>Перерыв, мин.<input type="number" min="1" max="180" value={breakMinutes} onChange={(event) => setBreakMinutes(event.target.value)} /></label></> : null}<label className="session-goal-field">Цель (необязательно)<input value={sessionGoal} maxLength={160} placeholder="Например, подготовить отчёт" onChange={(event) => setSessionGoal(event.target.value)} /></label><button className="primary-button session-start-button" type="button" onClick={() => void handleStartTabShareMonitoring()} disabled={isTabShared}>{isTabShared ? 'Демонстрация вкладки включена' : activeTask ? 'Начать работу над задачей' : 'Запустить через демонстрацию вкладки'}</button></div></section> : null}
+    {!isMonitoring ? <section className="session-setup-card">
+      <div>
+        <h2>{activeTask ? 'Продолжить задачу' : 'Выберите режим'}</h2>
+        <p>{activeTask ? 'Сессия будет записана в карточку, а работа может продолжаться и после 100%.' : 'Можно указать цель вручную или выбрать одну из своих задач.'}</p>
+        {activeTask ? <div className="monitor-task-context" style={{ '--task-color': activeTask.color } as CSSProperties}><i /><span><small>Задача</small><strong>{activeTask.title}</strong></span><button type="button" onClick={() => handleTaskSelection('')}>Отвязать</button></div> : null}
+      </div>
+      <div className="session-setup-fields">
+        <label>Режим<select value={mode} onChange={(event) => setMode(event.target.value as SessionMode)}><option value="free">Свободный режим</option><option value="pomodoro">Помодоро</option><option value="smart-pomodoro">Умный помодоро</option></select></label>
+        {mode !== 'free' ? <><label>Работа, мин.<select value={focusMinutes} onChange={(event) => setFocusMinutes(event.target.value)}>{DURATION_OPTIONS.map((value) => <option key={value} value={value}>{value} минут</option>)}</select></label><label>Перерыв, мин.<input type="number" min="1" max="180" value={breakMinutes} onChange={(event) => setBreakMinutes(event.target.value)} /></label></> : null}
+        <label className="session-task-field">Задача (необязательно)<select value={activeTask?.id ?? ''} onChange={(event) => handleTaskSelection(event.target.value)}><option value="">Без привязки к задаче</option>{availableTasks.filter((task) => task.status === 'in-progress').length ? <optgroup label="Сегодня">{availableTasks.filter((task) => task.status === 'in-progress').map((task) => <option key={task.id} value={task.id}>{task.title}</option>)}</optgroup> : null}{availableTasks.filter((task) => task.status === 'planned').length ? <optgroup label="Бэклог">{availableTasks.filter((task) => task.status === 'planned').map((task) => <option key={task.id} value={task.id}>{task.title}</option>)}</optgroup> : null}{availableTasks.filter((task) => task.status === 'done').length ? <optgroup label="Выполнено">{availableTasks.filter((task) => task.status === 'done').map((task) => <option key={task.id} value={task.id}>{task.title}</option>)}</optgroup> : null}</select></label>
+        <label className="session-goal-field">Цель (необязательно)<input value={sessionGoal} maxLength={160} placeholder="Например, подготовить отчёт" onChange={(event) => setSessionGoal(event.target.value)} /></label>
+        <button className="primary-button session-start-button" type="button" onClick={() => void handleStartTabShareMonitoring()} disabled={isTabShared}>{isTabShared ? 'Демонстрация вкладки включена' : activeTask ? 'Начать работу над задачей' : 'Запустить через демонстрацию вкладки'}</button>
+      </div>
+    </section> : null}
     {isMonitoring ? <section className="pomodoro-panel session-control-panel" aria-live="polite"><span>{mode === 'free' ? 'Свободный режим' : phase === 'focus' ? 'Работа' : 'Перерыв'}</span><div className="timer-adjuster">{mode !== 'free' ? <button className="timer-adjust-button" type="button" onClick={() => adjustPhaseTime(-5)} aria-label="Убавить 5 минут">−</button> : null}<strong>{formatSessionDuration(mode === 'free' ? dashboard.activeSessionDurationMs : phaseRemainingMs)}</strong>{mode !== 'free' ? <button className="timer-adjust-button" type="button" onClick={() => adjustPhaseTime(5)} aria-label="Добавить 5 минут">+</button> : null}</div><p>{mode === 'free' ? `Активное время. ${attentionText}` : phase === 'break' ? 'Время отдыха идёт независимо от внимания.' : smartWaiting ? `Рабочий таймер ждёт: ${attentionText.toLowerCase()}.` : mode === 'smart-pomodoro' ? 'Рабочий таймер идёт только когда вы у экрана.' : 'Рабочий таймер идёт непрерывно.'}</p><div className="session-control-actions"><button className="secondary-button" type="button" onClick={() => setPaused(!isPaused)}>{isPaused ? 'Продолжить' : 'Поставить на паузу'}</button><button className="secondary-button session-end-button" type="button" onClick={() => void handleStop()}>{mode === 'free' ? 'Завершить сессию' : 'Завершить стрик'}</button></div></section> : null}
     <section className="workspace-grid">
       <article className="video-card">
