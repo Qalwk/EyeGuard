@@ -12,7 +12,13 @@ import {
   type BlinkEvent,
   type FatigueMetrics,
 } from '../lib/eyeMetrics'
-import { resolveMonitoringStatus, type MonitoringUiStatus } from '../lib/appLabels'
+import { type MonitoringUiStatus } from '../lib/appLabels'
+import {
+  buildEyeStrainAssessment,
+  initialEyeStrainAssessment,
+  type EyeStrainAssessment,
+  type EyeSymptom,
+} from '../lib/eyeStrain'
 import { clampThreshold } from '../lib/formValidation'
 import {
   anglesFromTransformationMatrix, awayDelayMs, isLookingAway, loadCalibration, loadSensitivity,
@@ -51,15 +57,22 @@ export type DashboardState = {
   manualPauseDurationMs: number
   pomodoroBreakDurationMs: number
   untrackedDurationMs: number
+  continuousFocusDurationMs: number
   fatigueMetrics: FatigueMetrics
+  eyeStrainAssessment: EyeStrainAssessment
 }
 
 type CameraPermissionState = 'granted' | 'denied' | 'prompt' | 'unsupported'
 
 const emptyMetrics: FatigueMetrics = {
   blinkRatePerMinute: 0,
+  estimatedBlinkRatePerMinute: 0,
   averageBlinkDurationMs: 0,
   eyeClosureRatio: 0,
+  incompleteBlinkRatio: 0,
+  characterizedBlinkCount: 0,
+  longBlinkRatio: 0,
+  observationDurationMs: 0,
   fatigueScore: 0,
 }
 
@@ -76,7 +89,9 @@ export const initialDashboardState: DashboardState = {
   manualPauseDurationMs: 0,
   pomodoroBreakDurationMs: 0,
   untrackedDurationMs: 0,
+  continuousFocusDurationMs: 0,
   fatigueMetrics: emptyMetrics,
+  eyeStrainAssessment: initialEyeStrainAssessment,
 }
 
 export function loadStoredThreshold() {
@@ -297,6 +312,9 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
   const eyeClosedRef = useRef(false)
   const closedStartedAtRef = useRef<number | null>(null)
   const totalClosedEyeMsRef = useRef(0)
+  const openEarBaselineRef = useRef<number | null>(null)
+  const blinkMinimumEarRef = useRef<number | null>(null)
+  const blinkOpenEarRef = useRef<number | null>(null)
   const blinkEventsRef = useRef<BlinkEvent[]>([])
   const blinkCountRef = useRef(0)
   const processedFrameCountRef = useRef(0)
@@ -319,6 +337,10 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
   const fatigueScoreIntegralRef = useRef(0)
   const eyeTrackedDurationMsRef = useRef(0)
   const eyeWarningDurationMsRef = useRef(0)
+  const continuousFocusMsRef = useRef(0)
+  const recoveryBreakMsRef = useRef(0)
+  const blinkBaselineRef = useRef<number | null>(null)
+  const reportedSymptomsRef = useRef<EyeSymptom[]>([])
 
   const [threshold, setThreshold] = useState(() => loadStoredThreshold())
   const [isMonitoring, setIsMonitoring] = useState(false)
@@ -332,6 +354,7 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
   const [isPaused, setIsPaused] = useState(false)
   const [completedSession, setCompletedSession] = useState<CompletedWorkSession | null>(null)
   const [sessionSaveError, setSessionSaveError] = useState('')
+  const [reportedSymptoms, setReportedSymptomsState] = useState<EyeSymptom[]>([])
 
   useEffect(() => {
     onDashboardUpdateRef.current = onDashboardUpdate
@@ -351,6 +374,9 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
     eyeClosedRef.current = false
     closedStartedAtRef.current = null
     totalClosedEyeMsRef.current = 0
+    openEarBaselineRef.current = null
+    blinkMinimumEarRef.current = null
+    blinkOpenEarRef.current = null
     blinkEventsRef.current = []
     blinkCountRef.current = 0
     processedFrameCountRef.current = 0
@@ -368,6 +394,21 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
     fatigueScoreIntegralRef.current = 0
     eyeTrackedDurationMsRef.current = 0
     eyeWarningDurationMsRef.current = 0
+    continuousFocusMsRef.current = 0
+    recoveryBreakMsRef.current = 0
+    blinkBaselineRef.current = null
+    reportedSymptomsRef.current = []
+    setReportedSymptomsState([])
+  }, [])
+
+  const toggleReportedSymptom = useCallback((symptom: EyeSymptom) => {
+    setReportedSymptomsState((current) => {
+      const next = current.includes(symptom)
+        ? current.filter((item) => item !== symptom)
+        : [...current, symptom]
+      reportedSymptomsRef.current = next
+      return next
+    })
   }, [])
 
   const syncCanvasWithVideo = useCallback(() => {
@@ -660,6 +701,12 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
         }
 
         if (!hasFace) {
+          recoveryBreakMsRef.current += frameDeltaMs
+          if (recoveryBreakMsRef.current >= 20_000) {
+            continuousFocusMsRef.current = 0
+            blinkEventsRef.current = []
+            blinkBaselineRef.current = null
+          }
           if (isPausedRef.current) {
             sessionTimesRef.current.manualPauseMs += frameDeltaMs
             recordInterval('manual-pause', 'user-paused')
@@ -715,6 +762,19 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
 
             if (nowMs - lastUiUpdateRef.current > UI_UPDATE_INTERVAL_MS) {
               lastUiUpdateRef.current = nowMs
+              const fatigueMetrics = buildFatigueMetrics({
+                blinkEvents: blinkEventsRef.current,
+                sessionDurationMs: continuousFocusMsRef.current,
+                totalClosedEyeMs: totalClosedEyeMsRef.current,
+                nowMs,
+              })
+              const eyeStrainAssessment = buildEyeStrainAssessment({
+                metrics: fatigueMetrics,
+                sessionDurationMs: nowMs - (sessionStartedAtRef.current ?? nowMs),
+                continuousFocusMs: continuousFocusMsRef.current,
+                baselineBlinkRate: blinkBaselineRef.current,
+                reportedSymptoms: reportedSymptomsRef.current,
+              })
               updateDashboard({
                 status: 'face-missing',
                 processedFrameCount: processedFrameCountRef.current,
@@ -728,12 +788,9 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
                 manualPauseDurationMs: sessionTimesRef.current.manualPauseMs,
                 pomodoroBreakDurationMs: sessionTimesRef.current.breakMs,
                 untrackedDurationMs: sessionTimesRef.current.untrackedMs,
-                fatigueMetrics: buildFatigueMetrics({
-                  blinkEvents: blinkEventsRef.current,
-                  sessionDurationMs: nowMs - (sessionStartedAtRef.current ?? nowMs),
-                  totalClosedEyeMs: totalClosedEyeMsRef.current,
-                  nowMs,
-                }),
+                continuousFocusDurationMs: continuousFocusMsRef.current,
+                fatigueMetrics,
+                eyeStrainAssessment,
               })
             }
           }
@@ -802,6 +859,8 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
 
         if (timelineType === 'active') {
           sessionTimesRef.current.activeMs += frameDeltaMs
+          continuousFocusMsRef.current += frameDeltaMs
+          recoveryBreakMsRef.current = 0
         } else if (timelineType === 'away') {
           sessionTimesRef.current.awayMs += frameDeltaMs
         } else if (timelineType === 'manual-pause') {
@@ -811,20 +870,50 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
         } else {
           sessionTimesRef.current.untrackedMs += frameDeltaMs
         }
+
+        if (
+          timelineType === 'away' ||
+          timelineType === 'manual-pause' ||
+          timelineType === 'pomodoro-break'
+        ) {
+          recoveryBreakMsRef.current += frameDeltaMs
+          if (recoveryBreakMsRef.current >= 20_000) {
+            continuousFocusMsRef.current = 0
+            blinkEventsRef.current = []
+            blinkBaselineRef.current = null
+          }
+        }
         recordInterval(timelineType, timelineReason)
 
         if (eyeClosedRef.current) {
           totalClosedEyeMsRef.current += frameDeltaMs
+          blinkMinimumEarRef.current = Math.min(
+            blinkMinimumEarRef.current ?? currentEar,
+            currentEar,
+          )
+        } else if (currentEar > EYE_OPEN_THRESHOLD) {
+          openEarBaselineRef.current = openEarBaselineRef.current === null
+            ? currentEar
+            : openEarBaselineRef.current * 0.98 + currentEar * 0.02
         }
 
         if (!eyeClosedRef.current && currentEar < EYE_CLOSED_THRESHOLD) {
           eyeClosedRef.current = true
           closedStartedAtRef.current = nowMs
+          blinkMinimumEarRef.current = currentEar
+          blinkOpenEarRef.current = openEarBaselineRef.current
         } else if (eyeClosedRef.current && currentEar > EYE_OPEN_THRESHOLD) {
           const blinkDurationMs = nowMs - (closedStartedAtRef.current ?? nowMs)
+          const openEar = blinkOpenEarRef.current
+          const minimumEar = blinkMinimumEarRef.current
+          const closureDepth = openEar && minimumEar !== null
+            ? Math.max(0, Math.min(1, (openEar - minimumEar) / openEar))
+            : undefined
 
           eyeClosedRef.current = false
           closedStartedAtRef.current = null
+          blinkMinimumEarRef.current = null
+          blinkOpenEarRef.current = null
 
           if (
             timelineType === 'active' &&
@@ -834,7 +923,7 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
             blinkCountRef.current += 1
             blinkEventsRef.current = [
               ...blinkEventsRef.current,
-              { timestampMs: nowMs, durationMs: blinkDurationMs },
+              { timestampMs: nowMs, durationMs: blinkDurationMs, closureDepth },
             ].filter((blink) => nowMs - blink.timestampMs < 5 * 60_000)
           }
         }
@@ -842,19 +931,31 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
         const sessionDurationMs = nowMs - sessionStartedAtRef.current
         const fatigueMetrics = buildFatigueMetrics({
           blinkEvents: blinkEventsRef.current,
-          sessionDurationMs,
+          sessionDurationMs: continuousFocusMsRef.current,
           totalClosedEyeMs: totalClosedEyeMsRef.current,
           nowMs,
         })
 
-        const nextStatus = resolveMonitoringStatus(
-          fatigueMetrics.fatigueScore,
-          thresholdRef.current,
-          fatigueMetrics.blinkRatePerMinute,
-        )
+        if (
+          blinkBaselineRef.current === null &&
+          continuousFocusMsRef.current >= 60_000 &&
+          fatigueMetrics.estimatedBlinkRatePerMinute >= 4 &&
+          fatigueMetrics.estimatedBlinkRatePerMinute <= 30
+        ) {
+          blinkBaselineRef.current = fatigueMetrics.estimatedBlinkRatePerMinute
+        }
 
-        if (timelineType === 'active') {
-          fatigueScoreIntegralRef.current += fatigueMetrics.fatigueScore * frameDeltaMs
+        const eyeStrainAssessment = buildEyeStrainAssessment({
+          metrics: fatigueMetrics,
+          sessionDurationMs,
+          continuousFocusMs: continuousFocusMsRef.current,
+          baselineBlinkRate: blinkBaselineRef.current,
+          reportedSymptoms: reportedSymptomsRef.current,
+        })
+        const nextStatus = eyeStrainAssessment.level === 'high' ? 'warning' : 'tracking'
+
+        if (timelineType === 'active' && !eyeStrainAssessment.alertsSuppressed) {
+          fatigueScoreIntegralRef.current += eyeStrainAssessment.score * frameDeltaMs
           eyeTrackedDurationMsRef.current += frameDeltaMs
           if (nextStatus === 'warning') eyeWarningDurationMsRef.current += frameDeltaMs
         }
@@ -874,7 +975,9 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
             manualPauseDurationMs: sessionTimesRef.current.manualPauseMs,
             pomodoroBreakDurationMs: sessionTimesRef.current.breakMs,
             untrackedDurationMs: sessionTimesRef.current.untrackedMs,
+            continuousFocusDurationMs: continuousFocusMsRef.current,
             fatigueMetrics,
+            eyeStrainAssessment,
           })
         }
       }
@@ -922,5 +1025,7 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
     sessionSaveError,
     retryCompletedSessionSave,
     clearCompletedSession,
+    reportedSymptoms,
+    toggleReportedSymptom,
   }
 }

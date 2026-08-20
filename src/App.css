@@ -439,6 +439,7 @@ body:has(.auth-shell-wellness) {
 .video-card,
 .settings-card,
 .warning-card,
+.eye-comfort-card,
 .admin-card {
   padding: 22px;
 }
@@ -602,6 +603,119 @@ body:has(.auth-shell-wellness) {
 
 .warning-card-active p {
   color: #a16207;
+}
+
+.eye-comfort-card {
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--panel-bg);
+  box-shadow: var(--shadow);
+  text-align: left;
+}
+
+.eye-comfort-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.eye-comfort-heading h2 {
+  margin: 0;
+}
+
+.eye-comfort-heading span {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, .12);
+  color: #047857;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.eye-comfort-title {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text-h);
+}
+
+.eye-comfort-card p,
+.eye-comfort-card li,
+.eye-comfort-card small {
+  color: var(--text-soft);
+}
+
+.eye-comfort-card ul {
+  display: grid;
+  gap: 7px;
+  margin: 14px 0 0;
+  padding-left: 20px;
+}
+
+.eye-comfort-card small {
+  display: block;
+  margin-top: 14px;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.eye-comfort-moderate,
+.eye-comfort-high {
+  border-color: rgba(217, 119, 6, .3);
+  background: linear-gradient(145deg, #fffdf5, #fff8df);
+}
+
+.eye-comfort-high {
+  border-color: rgba(220, 38, 38, .28);
+  background: linear-gradient(145deg, #fffaf8, #fff0e7);
+}
+
+.eye-comfort-moderate .eye-comfort-heading span,
+.eye-comfort-high .eye-comfort-heading span {
+  color: #9a5b0a;
+  background: rgba(245, 158, 11, .16);
+}
+
+.eye-comfort-high .eye-comfort-heading span {
+  color: #b42318;
+  background: rgba(239, 68, 68, .13);
+}
+
+.symptom-checkin {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.symptom-checkin summary {
+  color: var(--text-h);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.symptom-options {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.symptom-options label {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: var(--text-soft);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.symptom-options input {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  accent-color: #075b45;
 }
 
 .error-text {
@@ -822,7 +936,7 @@ body:has(.app-shell-wellness) {
 .app-shell-wellness .hero-visual { position: relative; z-index: 1; flex: 0 1 390px; align-self: stretch; min-width: 260px; }
 .app-shell-wellness .hero-visual img { position: absolute; right: -5px; bottom: -82px; width: min(480px, 100%); height: auto; filter: drop-shadow(0 24px 22px rgba(5, 91, 69, .16)); }
 
-.app-shell-wellness .session-setup-card, .app-shell-wellness .video-card, .app-shell-wellness .settings-card, .app-shell-wellness .warning-card, .app-shell-wellness .metric-card, .app-shell-wellness .pomodoro-panel { border-color: var(--wellness-border); border-radius: 24px; background: var(--wellness-surface); box-shadow: 0 14px 38px rgba(5, 91, 69, .08); }
+.app-shell-wellness .session-setup-card, .app-shell-wellness .video-card, .app-shell-wellness .settings-card, .app-shell-wellness .warning-card, .app-shell-wellness .eye-comfort-card, .app-shell-wellness .metric-card, .app-shell-wellness .pomodoro-panel { border-color: var(--wellness-border); border-radius: 24px; background: var(--wellness-surface); box-shadow: 0 14px 38px rgba(5, 91, 69, .08); }
 .app-shell-wellness .session-setup-card { grid-template-columns: minmax(225px, .7fr) minmax(0, 1.3fr); padding: 28px 30px; border-color: rgba(7, 91, 69, .15); background: linear-gradient(122deg, #fffefa, #f7faf4); }
 .app-shell-wellness .session-setup-card h2 { font-size: 25px; letter-spacing: -.03em; }
 .app-shell-wellness .session-setup-card p, .app-shell-wellness .card-header p, .app-shell-wellness .settings-card p, .app-shell-wellness .warning-card p { color: var(--wellness-muted); }
@@ -834,8 +948,13 @@ body:has(.app-shell-wellness) {
 .app-shell-wellness button:focus-visible, .app-shell-wellness a:focus-visible { outline: 3px solid #9bd73c; outline-offset: 3px; }
 
 .app-shell-wellness .workspace-grid { gap: 22px; grid-template-columns: minmax(0, 1.75fr) minmax(300px, .78fr); }
-.app-shell-wellness .video-card, .app-shell-wellness .settings-card, .app-shell-wellness .warning-card { padding: 24px; }
-.app-shell-wellness .card-header h2, .app-shell-wellness .settings-card h2, .app-shell-wellness .warning-card h2 { letter-spacing: -.025em; }
+.app-shell-wellness .video-card, .app-shell-wellness .settings-card, .app-shell-wellness .warning-card, .app-shell-wellness .eye-comfort-card { padding: 24px; }
+.app-shell-wellness .card-header h2, .app-shell-wellness .settings-card h2, .app-shell-wellness .warning-card h2, .app-shell-wellness .eye-comfort-card h2 { letter-spacing: -.025em; }
+
+.app-shell-wellness .eye-comfort-moderate { border-color: rgba(210, 153, 24, .24); background: linear-gradient(145deg, #fffef8, #fff8dc); }
+.app-shell-wellness .eye-comfort-high { border-color: rgba(199, 81, 52, .25); background: linear-gradient(145deg, #fffdf9, #ffefe4); }
+.app-shell-wellness .eye-comfort-card p, .app-shell-wellness .eye-comfort-card li, .app-shell-wellness .eye-comfort-card small, .app-shell-wellness .symptom-options label { color: var(--wellness-muted); }
+.app-shell-wellness .symptom-checkin { border-color: rgba(7, 91, 69, .12); }
 .app-shell-wellness .video-stage { border-color: rgba(7, 91, 69, .18); border-radius: 20px; background: radial-gradient(circle at 30% 20%, rgba(199, 243, 107, .18), transparent 38%), #08291f; }
 .app-shell-wellness .video-placeholder-wellness {
   flex-direction: row;
@@ -1671,6 +1790,7 @@ body:has(.app-shell-wellness) {
   .video-card,
   .settings-card,
   .warning-card,
+  .eye-comfort-card,
   .metric-card,
   .admin-card {
     border-radius: 18px;

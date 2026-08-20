@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext'
 import { type WorkSessionSetup, useEyeMonitoring } from '../hooks/useEyeMonitoring'
 import { APP_LABELS, getStatusBadgeText } from '../lib/appLabels'
 import { formatSessionDuration } from '../lib/eyeMetrics'
+import { EYE_SYMPTOM_LABELS, type EyeSymptom } from '../lib/eyeStrain'
 import { ownerIdForUser } from '../lib/workSessions'
 
 type SessionMode = 'free' | 'pomodoro' | 'smart-pomodoro'
@@ -52,6 +53,7 @@ export function MonitorPage() {
     sensitivity, setSensitivity, calibration, isCalibrating, calibrationProgress,
     calibrationMessage, startCalibration, isPaused, setPaused, setSessionPhase,
     completedSession, sessionSaveError, retryCompletedSessionSave, clearCompletedSession,
+    reportedSymptoms, toggleReportedSymptom,
   } = useEyeMonitoring()
 
   const statusText = useMemo(() => getStatusBadgeText(dashboard.status, errorMessage), [dashboard.status, errorMessage])
@@ -141,6 +143,10 @@ export function MonitorPage() {
   }
   const attentionText = dashboard.attentionStatus === 'active' ? 'Вы у экрана' : dashboard.attentionStatus === 'away' ? 'Похоже, вы отвлеклись' : dashboard.attentionStatus === 'paused' ? 'Сессия на паузе' : 'Камера не уверена'
   const smartWaiting = mode === 'smart-pomodoro' && phase === 'focus' && dashboard.attentionStatus !== 'active'
+  const eyeComfort = dashboard.eyeStrainAssessment
+  const blinkRateText = dashboard.fatigueMetrics.observationDurationMs < 10_000
+    ? 'Собираем данные'
+    : `${dashboard.fatigueMetrics.estimatedBlinkRatePerMinute.toFixed(1)} / мин`
 
   if (completedSession) {
     return <AppLayout title="Итог сессии" description="Короткий и понятный результат без технических метрик." variant="wellness">
@@ -162,7 +168,93 @@ export function MonitorPage() {
     {shareError ? <p className="form-error" role="alert">{shareError}</p> : null}
     {!isMonitoring ? <section className="session-setup-card"><div><h2>Выберите режим</h2><p>Цель необязательна. Режим запускается через демонстрацию вкладки.</p></div><div className="session-setup-fields"><label>Режим<select value={mode} onChange={(event) => setMode(event.target.value as SessionMode)}><option value="free">Свободный режим</option><option value="pomodoro">Помодоро</option><option value="smart-pomodoro">Умный помодоро</option></select></label>{mode !== 'free' ? <><label>Работа, мин.<select value={focusMinutes} onChange={(event) => setFocusMinutes(event.target.value)}>{DURATION_OPTIONS.map((value) => <option key={value} value={value}>{value} минут</option>)}</select></label><label>Перерыв, мин.<input type="number" min="1" max="180" value={breakMinutes} onChange={(event) => setBreakMinutes(event.target.value)} /></label></> : null}<label className="session-goal-field">Цель (необязательно)<input value={sessionGoal} maxLength={160} placeholder="Например, подготовить отчёт" onChange={(event) => setSessionGoal(event.target.value)} /></label><button className="primary-button session-start-button" type="button" onClick={() => void handleStartTabShareMonitoring()} disabled={isTabShared}>{isTabShared ? 'Демонстрация вкладки включена' : 'Запустить через демонстрацию вкладки'}</button></div></section> : null}
     {isMonitoring ? <section className="pomodoro-panel session-control-panel" aria-live="polite"><span>{mode === 'free' ? 'Свободный режим' : phase === 'focus' ? 'Работа' : 'Перерыв'}</span><div className="timer-adjuster">{mode !== 'free' ? <button className="timer-adjust-button" type="button" onClick={() => adjustPhaseTime(-5)} aria-label="Убавить 5 минут">−</button> : null}<strong>{formatSessionDuration(mode === 'free' ? dashboard.activeSessionDurationMs : phaseRemainingMs)}</strong>{mode !== 'free' ? <button className="timer-adjust-button" type="button" onClick={() => adjustPhaseTime(5)} aria-label="Добавить 5 минут">+</button> : null}</div><p>{mode === 'free' ? `Активное время. ${attentionText}` : phase === 'break' ? 'Время отдыха идёт независимо от внимания.' : smartWaiting ? `Рабочий таймер ждёт: ${attentionText.toLowerCase()}.` : mode === 'smart-pomodoro' ? 'Рабочий таймер идёт только когда вы у экрана.' : 'Рабочий таймер идёт непрерывно.'}</p><div className="session-control-actions"><button className="secondary-button" type="button" onClick={() => setPaused(!isPaused)}>{isPaused ? 'Продолжить' : 'Поставить на паузу'}</button><button className="secondary-button session-end-button" type="button" onClick={() => void handleStop()}>{mode === 'free' ? 'Завершить сессию' : 'Завершить стрик'}</button></div></section> : null}
-    <section className="workspace-grid"><article className="video-card"><div className="card-header"><div><h2>{APP_LABELS.videoStreamTitle}</h2><p>Вся обработка выполняется локально в браузере пользователя.</p></div><span className={`status-badge status-${dashboard.status}`}>{statusText}</span></div><div className="video-stage"><video ref={videoRef} className="camera-layer" autoPlay muted playsInline /><canvas ref={canvasRef} className="overlay-layer" />{!isMonitoring ? <div className="video-placeholder video-placeholder-wellness"><div className="video-placeholder-copy"><strong>Камера ещё не активна</strong><span>Выберите режим и начните через демонстрацию вкладки.</span></div><img src={wellnessHero} alt="Иллюстрация рабочего места EyeGuard" /></div> : null}</div><div className="video-footer"><div><span className="footer-label">{APP_LABELS.faceRecognitionLabel}</span><strong>{dashboard.hasFace ? APP_LABELS.faceDetected : APP_LABELS.faceWaiting}</strong></div><div><span className="footer-label">{APP_LABELS.earLabel}</span><strong>{dashboard.currentEar.toFixed(3)}</strong></div></div></article><aside className="sidebar"><article className="settings-card"><h2>Присутствие у экрана</h2><p>{calibration ? 'Обычное положение сохранено для этой камеры.' : 'Настройте обычное положение, чтобы отслеживание было точнее.'}</p><label className="settings-label" htmlFor="presence-sensitivity">Чувствительность</label><select id="presence-sensitivity" className="settings-select" value={sensitivity} onChange={(event) => setSensitivity(event.target.value as 'soft' | 'normal' | 'strict')}><option value="soft">Мягкая</option><option value="normal">Обычная</option><option value="strict">Строгая</option></select><button className="secondary-button calibration-button" type="button" disabled={!isMonitoring || isCalibrating} onClick={startCalibration}>{calibration ? 'Перенастроить' : 'Настроить положение'}</button>{isCalibrating ? <div className="calibration-progress" aria-live="polite"><span style={{ width: `${calibrationProgress}%` }} /></div> : null}{calibrationMessage ? <p className="calibration-message" aria-live="polite">{calibrationMessage}</p> : null}</article><article className={dashboard.attentionStatus === 'away' ? 'warning-card warning-card-active' : 'warning-card'}><h2>Внимание</h2><p className={dashboard.attentionStatus === 'away' ? 'warning-text' : ''}>{attentionText}</p></article></aside></section>
-    <section className="metrics-grid"><article className="metric-card accent-card"><span>Активное время</span><strong>{formatSessionDuration(dashboard.activeSessionDurationMs)}</strong></article><article className="metric-card"><span>Общее время</span><strong>{formatSessionDuration(dashboard.sessionDurationMs)}</strong></article><article className="metric-card"><span>Отвлечённое время</span><strong>{formatSessionDuration(dashboard.awayDurationMs)}</strong></article><article className="metric-card"><span>Ручная пауза</span><strong>{formatSessionDuration(dashboard.manualPauseDurationMs)}</strong></article><article className="metric-card"><span>{APP_LABELS.blinkCountTitle}</span><strong>{dashboard.blinkCount}</strong></article><article className="metric-card"><span>{APP_LABELS.blinkRateTitle}</span><strong>{dashboard.fatigueMetrics.blinkRatePerMinute} / мин</strong></article></section>
+    <section className="workspace-grid">
+      <article className="video-card">
+        <div className="card-header">
+          <div>
+            <h2>{APP_LABELS.videoStreamTitle}</h2>
+            <p>Вся обработка выполняется локально в браузере пользователя.</p>
+          </div>
+          <span className={`status-badge status-${dashboard.status}`}>{statusText}</span>
+        </div>
+        <div className="video-stage">
+          <video ref={videoRef} className="camera-layer" autoPlay muted playsInline />
+          <canvas ref={canvasRef} className="overlay-layer" />
+          {!isMonitoring ? <div className="video-placeholder video-placeholder-wellness">
+            <div className="video-placeholder-copy">
+              <strong>Камера ещё не активна</strong>
+              <span>Выберите режим и начните через демонстрацию вкладки.</span>
+            </div>
+            <img src={wellnessHero} alt="Иллюстрация рабочего места EyeGuard" />
+          </div> : null}
+        </div>
+        <div className="video-footer">
+          <div>
+            <span className="footer-label">{APP_LABELS.faceRecognitionLabel}</span>
+            <strong>{dashboard.hasFace ? APP_LABELS.faceDetected : APP_LABELS.faceWaiting}</strong>
+          </div>
+          <div>
+            <span className="footer-label">Непрерывная работа</span>
+            <strong>{formatSessionDuration(dashboard.continuousFocusDurationMs)}</strong>
+          </div>
+        </div>
+      </article>
+      <aside className="sidebar">
+        <article className={`eye-comfort-card eye-comfort-${eyeComfort.level}`} aria-live="polite">
+          <div className="eye-comfort-heading">
+            <h2>Комфорт глаз</h2>
+            <span>{eyeComfort.alertsSuppressed ? 'тихий период' : `${eyeComfort.score} / 100`}</span>
+          </div>
+          <strong className="eye-comfort-title">{eyeComfort.title}</strong>
+          <p>{eyeComfort.explanation}</p>
+          <ul>
+            {eyeComfort.recommendations.map((recommendation) => (
+              <li key={recommendation}>{recommendation}</li>
+            ))}
+          </ul>
+          <details className="symptom-checkin">
+            <summary>Отметить самочувствие</summary>
+            <div className="symptom-options">
+              {(Object.keys(EYE_SYMPTOM_LABELS) as EyeSymptom[]).map((symptom) => (
+                <label key={symptom}>
+                  <input
+                    type="checkbox"
+                    checked={reportedSymptoms.includes(symptom)}
+                    onChange={() => toggleReportedSymptom(symptom)}
+                  />
+                  <span>{EYE_SYMPTOM_LABELS[symptom]}</span>
+                </label>
+              ))}
+            </div>
+          </details>
+          <small>Оценка показывает риск и не заменяет осмотр специалиста.</small>
+        </article>
+        <article className="settings-card">
+          <h2>Присутствие у экрана</h2>
+          <p>{calibration ? 'Обычное положение сохранено для этой камеры.' : 'Настройте обычное положение, чтобы отслеживание было точнее.'}</p>
+          <label className="settings-label" htmlFor="presence-sensitivity">Чувствительность</label>
+          <select id="presence-sensitivity" className="settings-select" value={sensitivity} onChange={(event) => setSensitivity(event.target.value as 'soft' | 'normal' | 'strict')}>
+            <option value="soft">Мягкая</option>
+            <option value="normal">Обычная</option>
+            <option value="strict">Строгая</option>
+          </select>
+          <button className="secondary-button calibration-button" type="button" disabled={!isMonitoring || isCalibrating} onClick={startCalibration}>{calibration ? 'Перенастроить' : 'Настроить положение'}</button>
+          {isCalibrating ? <div className="calibration-progress" aria-live="polite"><span style={{ width: `${calibrationProgress}%` }} /></div> : null}
+          {calibrationMessage ? <p className="calibration-message" aria-live="polite">{calibrationMessage}</p> : null}
+        </article>
+        <article className={dashboard.attentionStatus === 'away' ? 'warning-card warning-card-active' : 'warning-card'}>
+          <h2>Внимание</h2>
+          <p className={dashboard.attentionStatus === 'away' ? 'warning-text' : ''}>{attentionText}</p>
+        </article>
+      </aside>
+    </section>
+    <section className="metrics-grid">
+      <article className="metric-card accent-card"><span>Активное время</span><strong>{formatSessionDuration(dashboard.activeSessionDurationMs)}</strong></article>
+      <article className="metric-card"><span>Общее время</span><strong>{formatSessionDuration(dashboard.sessionDurationMs)}</strong></article>
+      <article className="metric-card"><span>Отвлечённое время</span><strong>{formatSessionDuration(dashboard.awayDurationMs)}</strong></article>
+      <article className="metric-card"><span>{APP_LABELS.blinkCountTitle}</span><strong>{dashboard.blinkCount}</strong></article>
+      <article className="metric-card"><span>{APP_LABELS.blinkRateTitle}</span><strong>{blinkRateText}</strong></article>
+      <article className="metric-card"><span>Вероятно неполные моргания</span><strong>{dashboard.fatigueMetrics.characterizedBlinkCount > 0 ? `${Math.round(dashboard.fatigueMetrics.incompleteBlinkRatio * 100)}%` : '—'}</strong></article>
+    </section>
   </AppLayout>
 }

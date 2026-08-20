@@ -6,12 +6,18 @@ type LandmarkPoint = {
 export type BlinkEvent = {
   timestampMs: number
   durationMs: number
+  closureDepth?: number
 }
 
 export type FatigueMetrics = {
   blinkRatePerMinute: number
+  estimatedBlinkRatePerMinute: number
   averageBlinkDurationMs: number
   eyeClosureRatio: number
+  incompleteBlinkRatio: number
+  characterizedBlinkCount: number
+  longBlinkRatio: number
+  observationDurationMs: number
   fatigueScore: number
 }
 
@@ -85,11 +91,29 @@ export function buildFatigueMetrics(params: {
   const recentBlinks = blinkEvents.filter((blink) => blink.timestampMs >= windowStartMs)
   const blinkRatePerMinute = recentBlinks.length
 
+  const observationDurationMs = Math.min(Math.max(sessionDurationMs, 1), MILLIS_IN_MINUTE)
+  const estimatedBlinkRatePerMinute =
+    observationDurationMs >= 10_000
+      ? (recentBlinks.length * MILLIS_IN_MINUTE) / observationDurationMs
+      : 0
+
   const totalBlinkDurationMs = recentBlinks.reduce((sum, blink) => sum + blink.durationMs, 0)
   const averageBlinkDurationMs =
     recentBlinks.length > 0 ? totalBlinkDurationMs / recentBlinks.length : 0
 
-  const measurementWindowMs = Math.min(Math.max(sessionDurationMs, 1), MILLIS_IN_MINUTE)
+  const characterizedBlinks = recentBlinks.filter(
+    (blink): blink is BlinkEvent & { closureDepth: number } =>
+      typeof blink.closureDepth === 'number',
+  )
+  const incompleteBlinkRatio = characterizedBlinks.length > 0
+    ? characterizedBlinks.filter((blink) => blink.closureDepth < 0.45).length /
+      characterizedBlinks.length
+    : 0
+  const longBlinkRatio = recentBlinks.length > 0
+    ? recentBlinks.filter((blink) => blink.durationMs >= 450).length / recentBlinks.length
+    : 0
+
+  const measurementWindowMs = observationDurationMs
   const eyeClosureRatio =
     measurementWindowMs > 0 ? totalBlinkDurationMs / measurementWindowMs : 0
 
@@ -97,8 +121,13 @@ export function buildFatigueMetrics(params: {
 
   return {
     blinkRatePerMinute,
+    estimatedBlinkRatePerMinute,
     averageBlinkDurationMs,
     eyeClosureRatio,
+    incompleteBlinkRatio,
+    characterizedBlinkCount: characterizedBlinks.length,
+    longBlinkRatio,
+    observationDurationMs,
     fatigueScore,
   }
 }
