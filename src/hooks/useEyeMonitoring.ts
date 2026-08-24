@@ -17,7 +17,6 @@ import {
   buildEyeStrainAssessment,
   initialEyeStrainAssessment,
   type EyeStrainAssessment,
-  type EyeSymptom,
 } from '../lib/eyeStrain'
 import { clampThreshold } from '../lib/formValidation'
 import {
@@ -341,7 +340,6 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
   const continuousFocusMsRef = useRef(0)
   const recoveryBreakMsRef = useRef(0)
   const blinkBaselineRef = useRef<number | null>(null)
-  const reportedSymptomsRef = useRef<EyeSymptom[]>([])
 
   const [threshold, setThreshold] = useState(() => loadStoredThreshold())
   const [isMonitoring, setIsMonitoring] = useState(false)
@@ -355,7 +353,6 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
   const [isPaused, setIsPaused] = useState(false)
   const [completedSession, setCompletedSession] = useState<CompletedWorkSession | null>(null)
   const [sessionSaveError, setSessionSaveError] = useState('')
-  const [reportedSymptoms, setReportedSymptomsState] = useState<EyeSymptom[]>([])
 
   useEffect(() => {
     onDashboardUpdateRef.current = onDashboardUpdate
@@ -398,18 +395,6 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
     continuousFocusMsRef.current = 0
     recoveryBreakMsRef.current = 0
     blinkBaselineRef.current = null
-    reportedSymptomsRef.current = []
-    setReportedSymptomsState([])
-  }, [])
-
-  const toggleReportedSymptom = useCallback((symptom: EyeSymptom) => {
-    setReportedSymptomsState((current) => {
-      const next = current.includes(symptom)
-        ? current.filter((item) => item !== symptom)
-        : [...current, symptom]
-      reportedSymptomsRef.current = next
-      return next
-    })
   }, [])
 
   const syncCanvasWithVideo = useCallback(() => {
@@ -485,7 +470,7 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
           setCompletedSession(result)
         } catch {
           setCompletedSession(result)
-          setSessionSaveError('Не удалось сохранить итог в историю. Результат не потерян — попробуйте ещё раз.')
+          setSessionSaveError('Не удалось сохранить итог в историю. Результат не потерян - попробуйте ещё раз.')
         }
       }
       return result
@@ -775,7 +760,6 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
                 sessionDurationMs: nowMs - (sessionStartedAtRef.current ?? nowMs),
                 continuousFocusMs: continuousFocusMsRef.current,
                 baselineBlinkRate: blinkBaselineRef.current,
-                reportedSymptoms: reportedSymptomsRef.current,
               })
               updateDashboard({
                 status: 'face-missing',
@@ -952,7 +936,6 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
           sessionDurationMs,
           continuousFocusMs: continuousFocusMsRef.current,
           baselineBlinkRate: blinkBaselineRef.current,
-          reportedSymptoms: reportedSymptomsRef.current,
         })
         const nextStatus = eyeStrainAssessment.level === 'high' ? 'warning' : 'tracking'
 
@@ -1027,7 +1010,5 @@ export function useEyeMonitoring(options: UseEyeMonitoringOptions = {}) {
     sessionSaveError,
     retryCompletedSessionSave,
     clearCompletedSession,
-    reportedSymptoms,
-    toggleReportedSymptom,
   }
 }

@@ -171,7 +171,7 @@ export function TasksPage() {
       </form>
     </section> : null}
 
-    {tasks.length === 0 ? <section className="tasks-empty"><div className="tasks-empty-mark">✓</div><h2>Задач пока нет</h2><p>Добавьте оценку времени — фактическая работа сможет пройти и за 100%.</p><button type="button" className="primary-button" onClick={openCreateForm}>Создать задачу</button></section> : <>
+    {tasks.length === 0 ? <section className="tasks-empty"><div className="tasks-empty-mark">✓</div><h2>Задач пока нет</h2><p>Добавьте оценку времени - фактическая работа сможет пройти и за 100%.</p><button type="button" className="primary-button" onClick={openCreateForm}>Создать задачу</button></section> : <>
       <section className="task-board" aria-label="Доска задач">
         <section className={`task-lane task-lane-backlog${dragOverStatus === 'planned' ? ' task-lane-dragover' : ''}`} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; setDragOverStatus('planned') }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragOverStatus(null) }} onDrop={(event) => dropTask(event, 'planned')}>
           <div className="task-lane-heading"><div><span>Позже</span><h2>Бэклог</h2></div><b>{backlogTasks.length}</b></div>

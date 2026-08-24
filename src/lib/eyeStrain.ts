@@ -1,6 +1,5 @@
 import type { FatigueMetrics } from './eyeMetrics'
 
-export type EyeSymptom = 'dryness' | 'blur' | 'headache' | 'heavy-eyelids'
 export type EyeStrainRiskLevel = 'collecting' | 'low' | 'moderate' | 'high'
 
 export type EyeStrainFactor =
@@ -9,7 +8,6 @@ export type EyeStrainFactor =
   | 'incomplete-blinks'
   | 'long-eye-closures'
   | 'continuous-screen-time'
-  | 'reported-symptoms'
 
 export type EyeStrainAssessment = {
   score: number
@@ -22,13 +20,6 @@ export type EyeStrainAssessment = {
   suppressionRemainingMs: number
 }
 
-export const EYE_SYMPTOM_LABELS: Record<EyeSymptom, string> = {
-  dryness: 'Сухость или жжение',
-  blur: 'Затуманивание',
-  headache: 'Головная боль',
-  'heavy-eyelids': 'Тяжесть век',
-}
-
 const MIN_OBSERVATION_MS = 45_000
 const SCREEN_BREAK_REMINDER_MS = 20 * 60_000
 export const WARNING_SUPPRESSION_MS = 15 * 60_000
@@ -36,10 +27,10 @@ export const WARNING_SUPPRESSION_MS = 15 * 60_000
 export const initialEyeStrainAssessment: EyeStrainAssessment = {
   score: 0,
   level: 'collecting',
-  title: 'Собираем личную норму',
+  title: 'Настраиваем рабочий ритм',
   explanation: 'Первые 45 секунд нужны, чтобы оценить естественный ритм моргания.',
   factors: [],
-  recommendations: ['Смотрите на экран как обычно — специально моргать не нужно.'],
+  recommendations: ['Смотрите на экран как обычно - специально моргать не нужно.'],
   alertsSuppressed: false,
   suppressionRemainingMs: 0,
 }
@@ -53,14 +44,12 @@ export function buildEyeStrainAssessment(params: {
   sessionDurationMs: number
   continuousFocusMs: number
   baselineBlinkRate?: number | null
-  reportedSymptoms?: EyeSymptom[]
 }): EyeStrainAssessment {
   const {
     metrics,
     sessionDurationMs,
     continuousFocusMs,
     baselineBlinkRate = null,
-    reportedSymptoms = [],
   } = params
   const factors: EyeStrainFactor[] = []
   const recommendations: string[] = []
@@ -79,7 +68,7 @@ export function buildEyeStrainAssessment(params: {
     factors.push('low-blink-rate')
     score += blinkRate < lowBlinkThreshold * 0.65 ? 35 : 25
     addUnique(recommendations, 'Посмотрите вдаль не менее 20 секунд.')
-    addUnique(recommendations, 'Сделайте 5–10 спокойных полных морганий.')
+    addUnique(recommendations, 'Сделайте 5-10 спокойных полных морганий.')
   }
 
   if (hasEnoughObservation && blinkRate > highBlinkThreshold) {
@@ -94,7 +83,7 @@ export function buildEyeStrainAssessment(params: {
   ) {
     factors.push('incomplete-blinks')
     score += metrics.incompleteBlinkRatio >= 0.65 ? 30 : 20
-    addUnique(recommendations, 'Сделайте 5–10 спокойных полных морганий.')
+    addUnique(recommendations, 'Сделайте 5-10 спокойных полных морганий.')
   }
 
   if (metrics.blinkRatePerMinute >= 4 && metrics.longBlinkRatio >= 0.25) {
@@ -109,12 +98,6 @@ export function buildEyeStrainAssessment(params: {
     addUnique(recommendations, 'Отведите взгляд от экрана: посмотрите вдаль не менее 20 секунд.')
   }
 
-  if (reportedSymptoms.length > 0) {
-    factors.push('reported-symptoms')
-    score += Math.min(35, reportedSymptoms.length * 12)
-    addUnique(recommendations, 'Если дискомфорт не проходит после отдыха или регулярно возвращается, проверьте зрение у специалиста.')
-  }
-
   score = Math.min(100, score)
 
   if (sessionDurationMs < WARNING_SUPPRESSION_MS) {
@@ -126,7 +109,7 @@ export function buildEyeStrainAssessment(params: {
       title: 'Наблюдение без предупреждений',
       explanation: `Первые 15 минут система только собирает данные. Оповещения включатся примерно через ${remainingMinutes} мин.`,
       factors,
-      recommendations: ['Работайте как обычно — анализ и настройка личной нормы уже идут.'],
+      recommendations: ['Работайте как обычно - анализ и настройка личной нормы уже идут.'],
       alertsSuppressed: true,
       suppressionRemainingMs,
     }
@@ -140,8 +123,8 @@ export function buildEyeStrainAssessment(params: {
     return {
       score,
       level: 'high',
-      title: 'Лучше сделать перерыв',
-      explanation: 'Совпало несколько признаков повышенного зрительного напряжения.',
+      title: 'Пора сделать перерыв',
+      explanation: 'Ритм моргания и длительность непрерывной работы дали несколько сигналов для перерыва.',
       factors,
       recommendations: recommendations.length > 0
         ? recommendations
@@ -155,8 +138,8 @@ export function buildEyeStrainAssessment(params: {
     return {
       score,
       level: 'moderate',
-      title: 'Глазам может требоваться отдых',
-      explanation: 'Есть отдельные признаки возможного зрительного напряжения.',
+      title: 'Можно ненадолго отвлечься от экрана',
+      explanation: 'Ритм работы подсказывает, что короткий перерыв будет кстати.',
       factors,
       recommendations,
       alertsSuppressed: false,
@@ -167,8 +150,8 @@ export function buildEyeStrainAssessment(params: {
   return {
     score,
     level: 'low',
-    title: 'Нагрузка выглядит комфортной',
-    explanation: 'Выраженных признаков зрительного напряжения сейчас не видно.',
+    title: 'Ритм выглядит спокойным',
+    explanation: 'Сейчас дополнительных сигналов для перерыва нет.',
     factors,
     recommendations: ['Продолжайте работать в удобном темпе и делайте регулярные перерывы.'],
     alertsSuppressed: false,

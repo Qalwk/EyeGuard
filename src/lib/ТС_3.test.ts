@@ -7,13 +7,13 @@ import {
 } from './appLabels'
 import { buildFatigueMetrics, calculateFatigueScore } from './eyeMetrics'
 
-describe('ТС_3 — предупреждение о превышении порога утомления', () => {
+describe('ТС_3 - сигнал для перерыва', () => {
   const tc3BlinkEvents = Array.from({ length: 15 }, (_, index) => ({
     timestampMs: 2_000 + index * 3_000,
     durationMs: 120,
   }))
 
-  it('при 15 морганиях за 50 с даёт уровень утомления 12 / 100', () => {
+  it('при 15 морганиях за 50 с даёт внутренний показатель 12 / 100', () => {
     const nowMs = 50_000
 
     const metrics = buildFatigueMetrics({
@@ -42,9 +42,9 @@ describe('ТС_3 — предупреждение о превышении пор
     expect(
       resolveMonitoringStatus(metrics.fatigueScore, threshold, metrics.blinkRatePerMinute),
     ).toBe('warning')
-    expect(getStatusBadgeText('warning')).toBe('Обнаружены признаки утомления')
+    expect(getStatusBadgeText('warning')).toBe('Пора сделать перерыв')
     expect(getUserStateText('warning')).toBe(
-      'Показатель утомления превысил заданный порог. Рекомендуется сделать перерыв.',
+      'Пора ненадолго отвлечься от экрана.',
     )
   })
 
@@ -87,7 +87,7 @@ describe('ТС_3 — предупреждение о превышении пор
   it('при пороге 10 и уровне 9 остаётся в состоянии отслеживания', () => {
     expect(resolveMonitoringStatus(9, 10, 8)).toBe('tracking')
     expect(getUserStateText('tracking')).toBe(
-      'Показатель утомления находится в допустимых пределах.',
+      'Сейчас дополнительных сигналов для перерыва нет.',
     )
   })
 

@@ -1,257 +1,64 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react'
-import type { AccountsData, UserAccount, UserAccountFormValues } from '../types/user'
-import {
-  authenticateUser,
-  clearAuthSession,
-  createGuestUser,
-  createUserAccount,
-  deleteUserAccount,
-  findUserById,
-  isAdminUser,
-  isGuestSession,
-  loadAccountsData,
-  loadAuthSession,
-  saveAuthSession,
-  updateUserAccount,
-  updateUserRole,
-} from '../lib/userAccounts'
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+
+const SESSION_STORAGE_KEY = 'eyeguard-session'
+
+type GuestUser = {
+  id: 0
+  login: 'guest'
+  name: 'Гость'
+}
+
+const GUEST_USER: GuestUser = {
+  id: 0,
+  login: 'guest',
+  name: 'Гость',
+}
 
 type AuthContextValue = {
   isReady: boolean
-  accountsData: AccountsData | null
-  currentUser: UserAccount | null
-  isAdmin: boolean
-  login: (loginValue: string, password: string) => string | null
+  currentUser: GuestUser | null
   loginAsGuest: () => void
-  register: (form: UserAccountFormValues) => string | null
   logout: () => void
-  addUser: (form: UserAccountFormValues) => string | null
-  editUser: (userId: number, form: UserAccountFormValues) => string | null
-  changeUserRole: (userId: number, roleId: number) => void
-  removeUser: (userId: number) => string | null
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
+function hasGuestSession() {
+  if (typeof window === 'undefined') {
+    return false
+  }
+
+  try {
+    const session = JSON.parse(window.sessionStorage.getItem(SESSION_STORAGE_KEY) ?? 'null')
+    return session?.guest === true
+  } catch {
+    return false
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isReady, setIsReady] = useState(false)
-  const [accountsData, setAccountsData] = useState<AccountsData | null>(null)
-  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null)
-
-  useEffect(() => {
-    let isMounted = true
-
-    async function bootstrap() {
-      try {
-        const data = await loadAccountsData()
-
-        if (!isMounted) {
-          return
-        }
-
-        setAccountsData(data)
-
-        const session = loadAuthSession()
-
-        if (session) {
-          if (isGuestSession(session)) {
-            setCurrentUser(createGuestUser())
-          } else {
-            const user = findUserById(data.users, session.userId)
-            setCurrentUser(user)
-          }
-        }
-      } catch {
-        if (isMounted) {
-          setAccountsData({ roles: [], users: [] })
-        }
-      } finally {
-        if (isMounted) {
-          setIsReady(true)
-        }
-      }
-    }
-
-    void bootstrap()
-
-    return () => {
-      isMounted = false
-    }
-  }, [])
-
-  const login = useCallback(
-    (loginValue: string, password: string) => {
-      if (!accountsData) {
-        return 'Список учётных записей ещё не загружен.'
-      }
-
-      const user = authenticateUser(accountsData.users, loginValue, password)
-
-      if (!user) {
-        return 'Неверный логин или пароль. Вход возможен только для зарегистрированных аккаунтов.'
-      }
-
-      saveAuthSession({ userId: user.id })
-      setCurrentUser(user)
-      return null
-    },
-    [accountsData],
+  const [currentUser, setCurrentUser] = useState<GuestUser | null>(() =>
+    hasGuestSession() ? GUEST_USER : null,
   )
 
   const loginAsGuest = useCallback(() => {
-    saveAuthSession({ guest: true })
-    setCurrentUser(createGuestUser())
+    window.sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({ guest: true }))
+    setCurrentUser(GUEST_USER)
   }, [])
 
   const logout = useCallback(() => {
-    clearAuthSession()
+    window.sessionStorage.removeItem(SESSION_STORAGE_KEY)
     setCurrentUser(null)
   }, [])
 
-  const register = useCallback(
-    (form: UserAccountFormValues) => {
-      if (!accountsData) {
-        return 'Список учётных записей недоступен.'
-      }
-
-      const defaultUserRoleId =
-        accountsData.roles.find((role) => role.name === 'user')?.id ?? 2
-
-      const result = createUserAccount(accountsData, {
-        ...form,
-        roleId: defaultUserRoleId,
-      })
-
-      if ('error' in result) {
-        return result.error
-      }
-
-      setAccountsData(result.data)
-      saveAuthSession({ userId: result.user.id })
-      setCurrentUser(result.user)
-      return null
-    },
-    [accountsData],
-  )
-
-  const addUser = useCallback(
-    (form: UserAccountFormValues) => {
-      if (!accountsData) {
-        return 'Список учётных записей недоступен.'
-      }
-
-      const result = createUserAccount(accountsData, form)
-
-      if ('error' in result) {
-        return result.error
-      }
-
-      setAccountsData(result.data)
-      return null
-    },
-    [accountsData],
-  )
-
-  const editUser = useCallback(
-    (userId: number, form: UserAccountFormValues) => {
-      if (!accountsData) {
-        return 'Список учётных записей недоступен.'
-      }
-
-      const result = updateUserAccount(accountsData, userId, form)
-
-      if ('error' in result) {
-        return result.error
-      }
-
-      setAccountsData(result.data)
-
-      if (currentUser?.id === userId) {
-        setCurrentUser(result.user)
-      }
-
-      return null
-    },
-    [accountsData, currentUser],
-  )
-
-  const changeUserRole = useCallback(
-    (userId: number, roleId: number) => {
-      if (!accountsData) {
-        return
-      }
-
-      const nextData = updateUserRole(accountsData, userId, roleId)
-      setAccountsData(nextData)
-
-      if (currentUser?.id === userId) {
-        const updatedUser = findUserById(nextData.users, userId)
-        setCurrentUser(updatedUser)
-      }
-    },
-    [accountsData, currentUser],
-  )
-
-  const removeUser = useCallback(
-    (userId: number) => {
-      if (!accountsData) {
-        return 'Список учётных записей недоступен.'
-      }
-
-      const result = deleteUserAccount(accountsData, userId)
-
-      if ('error' in result) {
-        return result.error
-      }
-
-      setAccountsData(result.data)
-
-      if (currentUser?.id === userId) {
-        clearAuthSession()
-        setCurrentUser(null)
-      }
-
-      return null
-    },
-    [accountsData, currentUser],
-  )
-
   const value = useMemo<AuthContextValue>(
     () => ({
-      isReady,
-      accountsData,
+      isReady: true,
       currentUser,
-      isAdmin: isAdminUser(currentUser),
-      login,
       loginAsGuest,
-      register,
       logout,
-      addUser,
-      editUser,
-      changeUserRole,
-      removeUser,
     }),
-    [
-      isReady,
-      accountsData,
-      currentUser,
-      login,
-      loginAsGuest,
-      register,
-      logout,
-      addUser,
-      editUser,
-      changeUserRole,
-      removeUser,
-    ],
+    [currentUser, loginAsGuest, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -11,8 +11,8 @@ const timelineLabels: Record<TimelineSegmentType, string> = {
 
 const eyeLabels = {
   comfortable: 'Комфортно',
-  strained: 'Есть напряжение',
-  'rest-recommended': 'Нужен отдых',
+  strained: 'Полезен короткий перерыв',
+  'rest-recommended': 'Пора отдохнуть',
   'insufficient-data': 'Недостаточно данных',
 } as const
 
@@ -41,8 +41,8 @@ export function SessionSummary({ session, saveError, onRetrySave, onNewSession, 
 
       <section className="summary-hero" aria-labelledby="session-summary-title">
         <div className="summary-score">
-          <span>Оценка продуктивности сессии</span>
-          <strong>{session.score.total ?? '—'} <small>/ 100</small></strong>
+          <span>Оценка ритма сессии</span>
+          <strong>{session.score.total ?? '-'} <small>/ 100</small></strong>
           {session.score.measurementCoverage < 0.6 ? <em>Оценка основана на доступной части данных</em> : null}
         </div>
         <div className="summary-verdict">
@@ -56,7 +56,7 @@ export function SessionSummary({ session, saveError, onRetrySave, onNewSession, 
       <section className="summary-metrics" aria-label="Главные показатели сессии">
         <article><span>Активное время</span><strong>{formatSessionDuration(session.activeDurationMs)}</strong><small>{scorePart(session.score.presencePoints, 50)} за присутствие</small></article>
         <article><span>Время вне экрана</span><strong>{formatSessionDuration(session.awayDurationMs)}</strong><small>{session.awayEventCount} уходов · {scorePart(session.score.stabilityPoints, 30)} за ритм</small></article>
-        <article><span>Состояние глаз</span><strong>{eyeLabels[session.eyeState]}</strong><small>{scorePart(session.score.eyePoints, 20)} за комфорт</small></article>
+        <article><span>Ритм и перерывы</span><strong>{eyeLabels[session.eyeState]}</strong><small>{scorePart(session.score.eyePoints, 20)} за ритм</small></article>
       </section>
 
       <section className="recommendation-card">
@@ -71,7 +71,7 @@ export function SessionSummary({ session, saveError, onRetrySave, onNewSession, 
             <div className="session-timeline" aria-label="Распределение времени сессии">
               {session.timeline.map((segment, index) => {
                 const duration = Math.max(0, segment.endOffsetMs - segment.startOffsetMs)
-                const title = `${timelineLabels[segment.type]}: ${formatClock(session.startedAt, segment.startOffsetMs)}–${formatClock(session.startedAt, segment.endOffsetMs)}, ${formatSessionDuration(duration)}`
+                const title = `${timelineLabels[segment.type]}: ${formatClock(session.startedAt, segment.startOffsetMs)}-${formatClock(session.startedAt, segment.endOffsetMs)}, ${formatSessionDuration(duration)}`
                 return <span key={`${segment.startOffsetMs}-${index}`} className={`timeline-segment timeline-${segment.type}`} style={{ flexGrow: duration, flexBasis: 0 }} tabIndex={0} title={title} aria-label={title} />
               })}
             </div>

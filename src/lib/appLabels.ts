@@ -1,23 +1,23 @@
 export const APP_LABELS = {
   videoStreamTitle: 'Видеопоток',
-  faceRecognitionLabel: 'Распознавание лица',
+  faceRecognitionLabel: 'Лицо в кадре',
   faceDetected: 'Лицо обнаружено',
   faceWaiting: 'Ожидание лица в кадре',
   earLabel: 'Текущее значение EAR',
   userStateTitle: 'Состояние пользователя',
-  fatigueLevelTitle: 'Текущий уровень утомления',
+  fatigueLevelTitle: 'Сигнал для перерыва',
   blinkCountTitle: 'Количество морганий',
   blinkRateTitle: 'Частота морганий',
   averageBlinkDurationTitle: 'Средняя длительность моргания',
   startMonitoringButton: 'Запустить мониторинг',
   statusStarting: 'Подготовка камеры и загрузка модели',
   statusTracking: 'Активное отслеживание',
-  statusWarning: 'Обнаружены признаки утомления',
+  statusWarning: 'Пора сделать перерыв',
   statusFaceMissing: 'Лицо не найдено в кадре',
   statusIdle: 'Система готова к запуску',
-  userStateNormal: 'Показатель утомления находится в допустимых пределах.',
+  userStateNormal: 'Сейчас дополнительных сигналов для перерыва нет.',
   userStateWarning:
-    'Показатель утомления превысил заданный порог. Рекомендуется сделать перерыв.',
+    'Пора ненадолго отвлечься от экрана.',
 } as const
 
 export type MonitoringUiStatus = 'idle' | 'starting' | 'tracking' | 'warning' | 'face-missing' | 'error'

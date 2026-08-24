@@ -1,18 +1,14 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
-type ProtectedRouteProps = {
-  requireAdmin?: boolean
-}
-
-export function ProtectedRoute({ requireAdmin = false }: ProtectedRouteProps) {
-  const { isReady, currentUser, isAdmin } = useAuth()
+export function ProtectedRoute() {
+  const { isReady, currentUser } = useAuth()
 
   if (!isReady) {
     return (
       <main className="app-shell">
         <section className="hero-panel">
-          <p>Загрузка учётных записей...</p>
+          <p>Загрузка приложения...</p>
         </section>
       </main>
     )
@@ -20,10 +16,6 @@ export function ProtectedRoute({ requireAdmin = false }: ProtectedRouteProps) {
 
   if (!currentUser) {
     return <Navigate to="/login" replace />
-  }
-
-  if (requireAdmin && !isAdmin) {
-    return <Navigate to="/" replace />
   }
 
   return <Outlet />

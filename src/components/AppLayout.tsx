@@ -19,7 +19,7 @@ export function AppLayout({
   heroVisual,
 }: AppLayoutProps) {
   const navigate = useNavigate()
-  const { currentUser, isAdmin, logout } = useAuth()
+  const { logout } = useAuth()
 
   const handleLogout = () => {
     logout()
@@ -48,21 +48,16 @@ export function AppLayout({
         Задачи
       </NavLink>
       <NavLink
-        to="/roadmap"
+        to="/faq"
         className={({ isActive }) => (isActive ? 'page-tab active' : 'page-tab')}
       >
-        План развития
+        FAQ
       </NavLink>
-      {isAdmin ? (
-        <NavLink
-          to="/admin"
-          className={({ isActive }) => (isActive ? 'page-tab active' : 'page-tab')}
-        >
-          Админ панель
-        </NavLink>
-      ) : null}
+      <a href="/policy.html" className="page-tab">
+        Политика
+      </a>
       <button type="button" className="page-tab page-tab-logout" onClick={handleLogout}>
-        Выйти ({currentUser?.login})
+        Завершить гостевую сессию
       </button>
     </div>
   )

@@ -7,7 +7,6 @@ import { useAuth } from '../context/AuthContext'
 import { type WorkSessionSetup, useEyeMonitoring } from '../hooks/useEyeMonitoring'
 import { APP_LABELS, getStatusBadgeText } from '../lib/appLabels'
 import { formatSessionDuration } from '../lib/eyeMetrics'
-import { EYE_SYMPTOM_LABELS, type EyeSymptom } from '../lib/eyeStrain'
 import { ownerIdForUser } from '../lib/workSessions'
 import { findWorkTask, loadWorkTasks, saveWorkTask, type WorkTask } from '../lib/workTasks'
 
@@ -15,6 +14,7 @@ type SessionMode = 'free' | 'pomodoro' | 'smart-pomodoro'
 type PomodoroPhase = 'focus' | 'break'
 
 const DURATION_OPTIONS = [25, 45, 60] as const
+const CAMERA_NOTICE_STORAGE_KEY = 'eyeguard-camera-notice-v1'
 
 function playPhaseSound(context: AudioContext | null) {
   if (!context) return
@@ -52,12 +52,15 @@ export function MonitorPage() {
   const [activeTask, setActiveTask] = useState<WorkTask | null>(null)
   const [phase, setPhase] = useState<PomodoroPhase>('focus')
   const [phaseRemainingMs, setPhaseRemainingMs] = useState(0)
+  const [showCameraNotice, setShowCameraNotice] = useState(false)
+  const [hasAcceptedCameraNotice, setHasAcceptedCameraNotice] = useState(
+    () => window.localStorage.getItem(CAMERA_NOTICE_STORAGE_KEY) === 'accepted',
+  )
   const {
     videoRef, canvasRef, isMonitoring, errorMessage, dashboard, startMonitoring, stopMonitoring,
     sensitivity, setSensitivity, calibration, isCalibrating, calibrationProgress,
     calibrationMessage, startCalibration, isPaused, setPaused, setSessionPhase,
     completedSession, sessionSaveError, retryCompletedSessionSave, clearCompletedSession,
-    reportedSymptoms, toggleReportedSymptom,
   } = useEyeMonitoring()
 
   const statusText = useMemo(() => getStatusBadgeText(dashboard.status, errorMessage), [dashboard.status, errorMessage])
@@ -167,6 +170,22 @@ export function MonitorPage() {
     }
   }
 
+  const handleStartRequest = () => {
+    if (hasAcceptedCameraNotice) {
+      void handleStartTabShareMonitoring()
+      return
+    }
+
+    setShowCameraNotice(true)
+  }
+
+  const handleConfirmCameraNotice = () => {
+    window.localStorage.setItem(CAMERA_NOTICE_STORAGE_KEY, 'accepted')
+    setHasAcceptedCameraNotice(true)
+    setShowCameraNotice(false)
+    void handleStartTabShareMonitoring()
+  }
+
   const handleStop = async () => { stopTabShare(); await stopMonitoring() }
   const adjustPhaseTime = (minutes: number) => {
     const nextRemaining = Math.max(0, remainingRef.current + minutes * 60_000)
@@ -198,6 +217,45 @@ export function MonitorPage() {
     variant="wellness"
   >
     {shareError ? <p className="form-error" role="alert">{shareError}</p> : null}
+    {showCameraNotice ? (
+      <div className="camera-notice-backdrop">
+        <section
+          className="camera-notice-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="camera-notice-title"
+          aria-describedby="camera-notice-description"
+        >
+          <span className="eyebrow">Перед запуском</span>
+          <h2 id="camera-notice-title">EyeGuard запросит доступ к камере</h2>
+          <p id="camera-notice-description">
+            Камера нужна для локального определения лица в кадре, положения головы и
+            показателей моргания во время рабочей сессии.
+          </p>
+          <ul>
+            <li>Видео, кадры и точки лица не отправляются владельцу проекта.</li>
+            <li>Итоги сессии и настройки сохраняются только в этом браузере.</li>
+            <li>После завершения мониторинга использование камеры прекращается.</li>
+          </ul>
+          <p className="camera-notice-secondary">
+            Браузер также запросит демонстрацию текущей вкладки, а затем разрешение на камеру.
+            Подробнее - в <a href="/policy.html">политике приватности</a>.
+          </p>
+          <div className="camera-notice-actions">
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => setShowCameraNotice(false)}
+            >
+              Отмена
+            </button>
+            <button className="primary-button" type="button" onClick={handleConfirmCameraNotice}>
+              Понятно, продолжить
+            </button>
+          </div>
+        </section>
+      </div>
+    ) : null}
     {!isMonitoring ? <section className="session-setup-card">
       <div>
         <h2>{activeTask ? 'Продолжить задачу' : 'Выберите режим'}</h2>
@@ -209,7 +267,7 @@ export function MonitorPage() {
         {mode !== 'free' ? <><label>Работа, мин.<select value={focusMinutes} onChange={(event) => setFocusMinutes(event.target.value)}>{DURATION_OPTIONS.map((value) => <option key={value} value={value}>{value} минут</option>)}</select></label><label>Перерыв, мин.<input type="number" min="1" max="180" value={breakMinutes} onChange={(event) => setBreakMinutes(event.target.value)} /></label></> : null}
         <label className="session-task-field">Задача (необязательно)<select value={activeTask?.id ?? ''} onChange={(event) => handleTaskSelection(event.target.value)}><option value="">Без привязки к задаче</option>{availableTasks.filter((task) => task.status === 'in-progress').length ? <optgroup label="Сегодня">{availableTasks.filter((task) => task.status === 'in-progress').map((task) => <option key={task.id} value={task.id}>{task.title}</option>)}</optgroup> : null}{availableTasks.filter((task) => task.status === 'planned').length ? <optgroup label="Бэклог">{availableTasks.filter((task) => task.status === 'planned').map((task) => <option key={task.id} value={task.id}>{task.title}</option>)}</optgroup> : null}{availableTasks.filter((task) => task.status === 'done').length ? <optgroup label="Выполнено">{availableTasks.filter((task) => task.status === 'done').map((task) => <option key={task.id} value={task.id}>{task.title}</option>)}</optgroup> : null}</select></label>
         <label className="session-goal-field">Цель (необязательно)<input value={sessionGoal} maxLength={160} placeholder="Например, подготовить отчёт" onChange={(event) => setSessionGoal(event.target.value)} /></label>
-        <button className="primary-button session-start-button" type="button" onClick={() => void handleStartTabShareMonitoring()} disabled={isTabShared}>{isTabShared ? 'Демонстрация вкладки включена' : activeTask ? 'Начать работу над задачей' : 'Запустить через демонстрацию вкладки'}</button>
+        <button className="primary-button session-start-button" type="button" onClick={handleStartRequest} disabled={isTabShared}>{isTabShared ? 'Демонстрация вкладки включена' : activeTask ? 'Начать работу над задачей' : 'Запустить через демонстрацию вкладки'}</button>
       </div>
     </section> : null}
     {isMonitoring ? <section className="pomodoro-panel session-control-panel" aria-live="polite"><span>{mode === 'free' ? 'Свободный режим' : phase === 'focus' ? 'Работа' : 'Перерыв'}</span><div className="timer-adjuster">{mode !== 'free' ? <button className="timer-adjust-button" type="button" onClick={() => adjustPhaseTime(-5)} aria-label="Убавить 5 минут">−</button> : null}<strong>{formatSessionDuration(mode === 'free' ? dashboard.activeSessionDurationMs : phaseRemainingMs)}</strong>{mode !== 'free' ? <button className="timer-adjust-button" type="button" onClick={() => adjustPhaseTime(5)} aria-label="Добавить 5 минут">+</button> : null}</div><p>{mode === 'free' ? `Активное время. ${attentionText}` : phase === 'break' ? 'Время отдыха идёт независимо от внимания.' : smartWaiting ? `Рабочий таймер ждёт: ${attentionText.toLowerCase()}.` : mode === 'smart-pomodoro' ? 'Рабочий таймер идёт только когда вы у экрана.' : 'Рабочий таймер идёт непрерывно.'}</p><div className="session-control-actions"><button className="secondary-button" type="button" onClick={() => setPaused(!isPaused)}>{isPaused ? 'Продолжить' : 'Поставить на паузу'}</button><button className="secondary-button session-end-button" type="button" onClick={() => void handleStop()}>{mode === 'free' ? 'Завершить сессию' : 'Завершить стрик'}</button></div></section> : null}
@@ -247,7 +305,7 @@ export function MonitorPage() {
       <aside className="sidebar">
         <article className={`eye-comfort-card eye-comfort-${eyeComfort.level}`} aria-live="polite">
           <div className="eye-comfort-heading">
-            <h2>Комфорт глаз</h2>
+            <h2>Ритм и перерывы</h2>
             <span>{eyeComfort.alertsSuppressed ? 'тихий период' : `${eyeComfort.score} / 100`}</span>
           </div>
           <strong className="eye-comfort-title">{eyeComfort.title}</strong>
@@ -257,22 +315,7 @@ export function MonitorPage() {
               <li key={recommendation}>{recommendation}</li>
             ))}
           </ul>
-          <details className="symptom-checkin">
-            <summary>Отметить самочувствие</summary>
-            <div className="symptom-options">
-              {(Object.keys(EYE_SYMPTOM_LABELS) as EyeSymptom[]).map((symptom) => (
-                <label key={symptom}>
-                  <input
-                    type="checkbox"
-                    checked={reportedSymptoms.includes(symptom)}
-                    onChange={() => toggleReportedSymptom(symptom)}
-                  />
-                  <span>{EYE_SYMPTOM_LABELS[symptom]}</span>
-                </label>
-              ))}
-            </div>
-          </details>
-          <small>Оценка показывает риск и не заменяет осмотр специалиста.</small>
+          <small>Это ориентир для перерыва, а не оценка здоровья.</small>
         </article>
         <article className="settings-card">
           <h2>Присутствие у экрана</h2>
@@ -299,7 +342,7 @@ export function MonitorPage() {
       <article className="metric-card"><span>Отвлечённое время</span><strong>{formatSessionDuration(dashboard.awayDurationMs)}</strong></article>
       <article className="metric-card"><span>{APP_LABELS.blinkCountTitle}</span><strong>{dashboard.blinkCount}</strong></article>
       <article className="metric-card"><span>{APP_LABELS.blinkRateTitle}</span><strong>{blinkRateText}</strong></article>
-      <article className="metric-card"><span>Вероятно неполные моргания</span><strong>{dashboard.fatigueMetrics.characterizedBlinkCount > 0 ? `${Math.round(dashboard.fatigueMetrics.incompleteBlinkRatio * 100)}%` : '—'}</strong></article>
+      <article className="metric-card"><span>Неполные моргания, примерно</span><strong>{dashboard.fatigueMetrics.characterizedBlinkCount > 0 ? `${Math.round(dashboard.fatigueMetrics.incompleteBlinkRatio * 100)}%` : '-'}</strong></article>
     </section>
   </AppLayout>
 }

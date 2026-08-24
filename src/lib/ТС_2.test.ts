@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { APP_LABELS } from './appLabels'
 import { buildFatigueMetrics, formatSessionDuration } from './eyeMetrics'
 
-describe('ТС_2 — фиксация морганий и расчёт показателей', () => {
+describe('ТС_2 - фиксация морганий и расчёт показателей', () => {
   it('учитывает только моргания за последнюю минуту', () => {
     const nowMs = 120_000
     const blinkEvents = [
@@ -45,7 +45,7 @@ describe('ТС_2 — фиксация морганий и расчёт пока�
     expect(APP_LABELS.blinkCountTitle).toBe('Количество морганий')
     expect(APP_LABELS.blinkRateTitle).toBe('Частота морганий')
     expect(APP_LABELS.averageBlinkDurationTitle).toBe('Средняя длительность моргания')
-    expect(APP_LABELS.fatigueLevelTitle).toBe('Текущий уровень утомления')
+    expect(APP_LABELS.fatigueLevelTitle).toBe('Сигнал для перерыва')
   })
 
   it('форматирует длительность сеанса в формате ЧЧ:ММ:СС', () => {
@@ -53,7 +53,7 @@ describe('ТС_2 — фиксация морганий и расчёт пока�
     expect(formatSessionDuration(45_000)).toBe('00:00:45')
   })
 
-  it('при частоте ниже 10/мин уровень утомления равен 0', () => {
+  it('при частоте ниже 10/мин внутренний показатель равен 0', () => {
     const nowMs = 48_000
     const blinkEvents = Array.from({ length: 8 }, (_, index) => ({
       timestampMs: 2_000 + index * 5_000,

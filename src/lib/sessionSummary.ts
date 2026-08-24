@@ -66,7 +66,7 @@ export function buildCompletedWorkSession(input: SessionSummaryInput): Completed
   let summaryReason = activeRatio === null ? 'Камере не хватило данных, чтобы оценить рабочее время.' : `${Math.round(activeRatio * 100)}% измеренного рабочего времени вы были у экрана.`
   if (eyeState === 'rest-recommended') {
     summaryLabel = 'Стоит отдохнуть'
-    summaryReason = 'Сигналы состояния глаз чаще обычного указывали на напряжение.'
+    summaryReason = 'Ритм моргания и длительность работы чаще обычного давали сигнал для перерыва.'
   } else if (normalizedAwayEvents >= 4) {
     summaryLabel = 'Было много переключений'
     summaryReason = `${awayEventCount} ${awayEventCount === 1 ? 'уход' : 'уходов'} от экрана нарушили рабочий ритм.`
@@ -82,7 +82,7 @@ export function buildCompletedWorkSession(input: SessionSummaryInput): Completed
   ].sort((first, second) => second.value - first.value)
   let recommendation = 'Сохраните этот спокойный ритм в следующей сессии.'
   if (losses[0].value > 0.15) {
-    recommendation = losses[0].type === 'eyes' ? 'Сделайте перерыв на 5–10 минут и дайте глазам посмотреть вдаль.' : losses[0].type === 'presence' ? 'Перед следующей сессией подготовьте всё нужное, чтобы реже надолго отходить.' : 'На следующую сессию отключите лишние уведомления и соберите задачи в один блок.'
+    recommendation = losses[0].type === 'eyes' ? 'Сделайте перерыв на 5-10 минут и дайте глазам посмотреть вдаль.' : losses[0].type === 'presence' ? 'Перед следующей сессией подготовьте всё нужное, чтобы реже надолго отходить.' : 'На следующую сессию отключите лишние уведомления и соберите задачи в один блок.'
   } else if (activeDurationMs >= 50 * 60_000) {
     recommendation = 'После длинного фокус-блока сделайте короткий перерыв и посмотрите вдаль.'
   }
