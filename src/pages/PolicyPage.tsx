@@ -1,141 +1,23 @@
-<!doctype html>
-<html lang="ru">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="light" />
-    <title>Политика приватности EyeGuard</title>
-    <style>
-      :root {
-        --ink: #123c2f;
-        --muted: #668176;
-        --emerald: #075b45;
-        --lime-soft: #f4f7e9;
-        --surface: #fffefa;
-        --border: rgba(7, 91, 69, .13);
-      }
+import { AppLayout } from '../components/AppLayout'
 
-      * { box-sizing: border-box; }
-
-      body {
-        margin: 0;
-        min-width: 320px;
-        color: var(--ink);
-        background: radial-gradient(circle at 8% 8%, rgba(218, 234, 191, .28), transparent 19rem), radial-gradient(circle at 88% 28%, rgba(207, 230, 216, .24), transparent 25rem), linear-gradient(135deg, #fcfdfb 0%, #f8faf8 48%, #f3f6f2 100%);
-        font: 16px/1.65 Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      }
-
-      a { color: var(--emerald); }
-
-      .page {
-        width: min(980px, calc(100% - 32px));
-        margin: 0 auto;
-        padding: 28px 0 64px;
-      }
-
-      .topbar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        margin-bottom: 18px;
-      }
-
-      .brand,
-      .eyebrow {
-        color: var(--emerald);
-        font-size: 12px;
-        font-weight: 800;
-        letter-spacing: .11em;
-        text-transform: uppercase;
-      }
-
-      .brand {
-        padding: 7px 12px;
-        border-radius: 999px;
-        background: var(--lime-soft);
-        text-decoration: none;
-      }
-
-      .back-link { font-size: 14px; font-weight: 700; }
-
-      .hero,
-      .content,
-      .owner-card {
-        border: 1px solid var(--border);
-        background: rgba(255, 255, 252, .94);
-        box-shadow: 0 14px 38px rgba(5, 91, 69, .07);
-      }
-
-      .hero {
-        padding: clamp(28px, 5vw, 48px);
-        border-radius: 30px;
-        background: linear-gradient(115deg, rgba(255, 255, 252, .97), rgba(240, 255, 203, .82));
-      }
-
-      h1, h2 { color: var(--ink); line-height: 1.15; letter-spacing: -.035em; }
-      h1 { max-width: 720px; margin: 12px 0; font-size: clamp(2.3rem, 6vw, 4.3rem); }
-      h2 { margin: 32px 0 10px; font-size: 1.45rem; }
-      p { margin: 0 0 14px; }
-      .lead { max-width: 720px; margin: 0; color: var(--muted); font-size: 17px; }
-      .version { margin-top: 18px; color: var(--muted); font-size: 13px; }
-
-      .content {
-        margin-top: 18px;
-        padding: clamp(24px, 5vw, 42px);
-        border-radius: 26px;
-      }
-
-      .content h2:first-child { margin-top: 0; }
-      .content p, .content li { color: #496b5f; }
-      ul { display: grid; gap: 8px; padding-left: 22px; }
-      code { padding: 2px 6px; border-radius: 6px; background: var(--lime-soft); color: var(--ink); }
-
-      .notice {
-        margin: 20px 0;
-        padding: 18px 20px;
-        border: 1px solid rgba(7, 91, 69, .15);
-        border-radius: 18px;
-        background: var(--lime-soft);
-        color: #315f50;
-      }
-
-      .owner-card {
-        margin-top: 18px;
-        padding: 26px 28px;
-        border-radius: 24px;
-      }
-
-      .owner-card h2 { margin-top: 8px; }
-      .owner-card dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 20px 0 0; }
-      .owner-card dl div { padding: 14px 16px; border-radius: 14px; background: var(--lime-soft); }
-      dt { color: var(--muted); font-size: 12px; font-weight: 700; }
-      dd { margin: 4px 0 0; font-weight: 700; }
-
-      @media (max-width: 640px) {
-        .owner-card dl { grid-template-columns: 1fr; }
-        .topbar { align-items: flex-start; }
-      }
-    </style>
-  </head>
-  <body>
-    <main class="page">
-      <nav class="topbar" aria-label="Навигация">
-        <a class="brand" href="/">EyeGuard</a>
-        <a class="back-link" href="/faq">FAQ и контакты</a>
-      </nav>
-
-      <header class="hero">
-        <span class="eyebrow">Приватность</span>
+export function PolicyPage() {
+  return (
+    <AppLayout
+      title="Политика приватности"
+      description="Как EyeGuard работает с камерой, локальными данными, хостингом и аналитикой."
+      variant="wellness"
+    >
+      <section className="faq-intro policy-intro">
+        <span className="eyebrow">Приватность</span>
         <h1>Политика приватности EyeGuard</h1>
-        <p class="lead">
+        <p>
           EyeGuard работает без регистрации. Камера обрабатывается локально, а история и
           настройки сохраняются только в браузере на текущем устройстве.
         </p>
-        <p class="version">Редакция от 25 августа 2026 года</p>
-      </header>
+        <span className="policy-version">Редакция от 25 августа 2026 года</span>
+      </section>
 
-      <article class="content">
+      <article className="policy-content">
         <h2>1. О проекте</h2>
         <p>
           EyeGuard - wellness-приложение для организации рабочих сессий и напоминаний о
@@ -173,7 +55,7 @@
         <h2>4. Внешние технические ресурсы</h2>
         <p>
           Для запуска локального анализа текущая версия загружает библиотечные файлы MediaPipe
-          с <code>cdn.jsdelivr.net</code>, а модель обработки лица - с
+          с <code>cdn.jsdelivr.net</code>, а модель обработки лица - с{' '}
           <code>storage.googleapis.com</code>. При таком запросе соответствующий сервис может
           получить стандартные сетевые сведения, включая IP-адрес, User-Agent, время запроса и
           адрес запрошенного файла. Видео и результаты анализа в эти запросы не включаются.
@@ -182,34 +64,37 @@
         <h2>5. Хостинг и серверные журналы</h2>
         <p>
           Production-версия EyeGuard размещается на платформе Vercel. Хостинг автоматически
-          обрабатывает стандартные журналы HTTP-запросов,
-          включая IP-адрес, User-Agent, дату, время и адрес страницы. Эти сведения нужны для
-          доставки сайта, обеспечения безопасности и диагностики ошибок. Vercel использует
-          глобальную инфраструктуру, поэтому сетевые сведения могут обрабатываться за пределами РФ.
+          обрабатывает стандартные журналы HTTP-запросов, включая IP-адрес, User-Agent, дату,
+          время и адрес страницы. Эти сведения нужны для доставки сайта, обеспечения безопасности
+          и диагностики ошибок. Vercel использует глобальную инфраструктуру, поэтому сетевые
+          сведения могут обрабатываться за пределами РФ.
         </p>
 
         <h2>6. Анонимная веб-аналитика</h2>
         <p>
-          EyeGuard использует сервис <a href="https://vercel.com/docs/analytics/privacy-policy" target="_blank" rel="noreferrer">Vercel Web Analytics</a>
-          компании Vercel Inc. (США), чтобы видеть общее количество посещений,
-          популярные страницы, источники переходов, примерную географию, тип устройства,
-          операционную систему и браузер. Аналитика нужна для оценки работы и развития проекта.
+          EyeGuard использует сервис{' '}
+          <a href="https://vercel.com/docs/analytics/privacy-policy" target="_blank" rel="noreferrer">
+            Vercel Web Analytics
+          </a>{' '}
+          компании Vercel Inc. (США), чтобы видеть общее количество посещений, популярные
+          страницы, источники переходов, примерную географию, тип устройства, операционную
+          систему и браузер. Аналитика нужна для оценки работы и развития проекта.
         </p>
         <ul>
           <li>Vercel Web Analytics не использует сторонние cookie-файлы.</li>
           <li>Владелец EyeGuard получает только агрегированные отчеты и не видит личность посетителя.</li>
-          <li>Vercel не связывает аналитические события с конкретным человеком или сохраненным IP-адресом.</li>
-          <li>Для подсчета посетителей используется временный технический идентификатор, который Vercel удаляет через 24 часа.</li>
-          <li>Видео, кадры, история сессий, задачи и показатели камеры в аналитику не передаются.</li>
-          <li>EyeGuard не отправляет в аналитику имена, email, телефоны и другие пользовательские идентификаторы.</li>
-          <li>Параметры URL удаляются, а идентификаторы отдельных записей истории заменяются общим адресом до отправки события.</li>
+          <li>Vercel не связывает события с конкретным человеком или сохраненным IP-адресом.</li>
+          <li>Временный идентификатор посетителя удаляется Vercel через 24 часа.</li>
+          <li>Видео, кадры, история, задачи и показатели камеры в аналитику не передаются.</li>
+          <li>EyeGuard не отправляет имена, email, телефоны и другие пользовательские идентификаторы.</li>
+          <li>Параметры URL удаляются, а идентификаторы записей истории заменяются общим адресом.</li>
         </ul>
         <p>
           В аналитическое событие могут входить время посещения, адрес страницы, источник перехода,
-          отфильтрованные параметры запроса, примерная география, браузер, операционная система и тип
-          устройства. Данные передаются Vercel и могут обрабатываться за пределами РФ. Срок доступности
-          агрегированных отчетов зависит от тарифа Vercel; для тарифа Hobby отчетный период составляет
-          один месяц. Vercel может хранить сведения дольше в соответствии со своими условиями.
+          примерная география, браузер, операционная система и тип устройства. Данные передаются
+          Vercel и могут обрабатываться за пределами РФ. Срок доступности агрегированных отчетов
+          зависит от тарифа Vercel; для тарифа Hobby отчетный период составляет один месяц. Vercel
+          может хранить сведения дольше в соответствии со своими условиями.
         </p>
 
         <h2>7. Как удалить данные</h2>
@@ -228,7 +113,7 @@
         </p>
 
         <h2>9. Границы возможностей</h2>
-        <div class="notice">
+        <div className="policy-notice">
           EyeGuard не является медицинским изделием, не ставит диагнозы и не заменяет
           консультацию врача. Результаты являются ориентировочными напоминаниями для организации
           работы и перерывов.
@@ -243,9 +128,11 @@
         </p>
       </article>
 
-      <section class="owner-card" aria-labelledby="owner-title">
-        <span class="eyebrow">Владелец и контакты</span>
-        <h2 id="owner-title">Информация о проекте</h2>
+      <section className="faq-owner" aria-labelledby="policy-owner-title">
+        <div>
+          <span className="eyebrow">Владелец и контакты</span>
+          <h2 id="policy-owner-title">Информация о проекте</h2>
+        </div>
         <dl>
           <div><dt>Владелец проекта EyeGuard</dt><dd>Артемий Горлатов</dd></div>
           <div><dt>Статус владельца</dt><dd>Физическое лицо</dd></div>
@@ -254,6 +141,6 @@
           <div><dt>Telegram проекта</dt><dd><a href="https://t.me/blinkmind" target="_blank" rel="noreferrer">@blinkmind</a></dd></div>
         </dl>
       </section>
-    </main>
-  </body>
-</html>
+    </AppLayout>
+  )
+}

@@ -121,6 +121,78 @@
   line-height: 1.65;
 }
 
+.policy-intro {
+  display: grid;
+  gap: 10px;
+}
+
+.policy-intro h1,
+.policy-intro p {
+  margin: 0;
+}
+
+.policy-version {
+  margin-top: 8px;
+  color: #668176;
+  font-size: 13px;
+}
+
+.policy-content {
+  padding: clamp(24px, 5vw, 42px);
+  border: 1px solid rgba(7, 91, 69, .13);
+  border-radius: 26px;
+  background: rgba(255, 255, 252, .92);
+  box-shadow: 0 14px 38px rgba(5, 91, 69, .07);
+}
+
+.policy-content h2 {
+  margin: 32px 0 10px;
+  color: #123c2f;
+  font-size: 1.45rem;
+  letter-spacing: -.035em;
+}
+
+.policy-content h2:first-child {
+  margin-top: 0;
+}
+
+.policy-content p,
+.policy-content li {
+  color: #496b5f;
+  line-height: 1.65;
+}
+
+.policy-content p {
+  margin: 0 0 14px;
+}
+
+.policy-content ul {
+  display: grid;
+  gap: 8px;
+  padding-left: 22px;
+}
+
+.policy-content a,
+.policy-content code {
+  color: #075b45;
+}
+
+.policy-content code {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #f4f9e9;
+}
+
+.policy-notice {
+  margin: 20px 0;
+  padding: 18px 20px;
+  border: 1px solid rgba(7, 91, 69, .15);
+  border-radius: 18px;
+  background: #f4f9e9;
+  color: #315f50;
+  line-height: 1.65;
+}
+
 .camera-notice-backdrop {
   position: fixed;
   z-index: 100;

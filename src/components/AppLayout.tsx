@@ -53,9 +53,12 @@ export function AppLayout({
       >
         FAQ
       </NavLink>
-      <a href="/policy.html" className="page-tab">
+      <NavLink
+        to="/policy"
+        className={({ isActive }) => (isActive ? 'page-tab active' : 'page-tab')}
+      >
         Политика
-      </a>
+      </NavLink>
       <button type="button" className="page-tab page-tab-logout" onClick={handleLogout}>
         Завершить гостевую сессию
       </button>

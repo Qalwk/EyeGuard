@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AppLayout } from '../components/AppLayout'
 import { SessionSummary } from '../components/SessionSummary'
 import wellnessHero from '../assets/eyeguard-wellness-hero.png'
@@ -239,7 +239,7 @@ export function MonitorPage() {
           </ul>
           <p className="camera-notice-secondary">
             Браузер также запросит демонстрацию текущей вкладки, а затем разрешение на камеру.
-            Подробнее - в <a href="/policy.html">политике приватности</a>.
+            Подробнее - в <Link to="/policy">политике приватности</Link>.
           </p>
           <div className="camera-notice-actions">
             <button

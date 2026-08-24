@@ -14,7 +14,7 @@
   </url>
 
   <url>
-    <loc>http://localhost:5173/policy.html</loc>
+    <loc>http://localhost:5173/policy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.35</priority>
   </url>

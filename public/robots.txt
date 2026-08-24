@@ -2,7 +2,7 @@ User-agent: *
 
 Allow: /
 Allow: /about.html
-Allow: /policy.html
+Allow: /policy
 Allow: /favicon.svg
 
 Disallow: /dashboard

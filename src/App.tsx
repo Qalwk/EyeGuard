@@ -6,6 +6,7 @@ import { FaqPage } from './pages/FaqPage'
 import { HistoryPage } from './pages/HistoryPage'
 import { LoginPage } from './pages/LoginPage'
 import { MonitorPage } from './pages/MonitorPage'
+import { PolicyPage } from './pages/PolicyPage'
 import { SessionDetailPage } from './pages/SessionDetailPage'
 import { TasksPage } from './pages/TasksPage'
 
@@ -20,6 +21,7 @@ function App() {
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/history/:sessionId" element={<SessionDetailPage />} />
           <Route path="/faq" element={<FaqPage />} />
+          <Route path="/policy" element={<PolicyPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
